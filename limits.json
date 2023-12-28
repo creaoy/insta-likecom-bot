@@ -9,7 +9,8 @@
     },
     "hourly": {
         "likes": 350,
-        "accounts": 1200,
-        "comments": 99
-    }
+        "accounts": 120,
+        "comments": 200
+    },
+    "session_timeout": 20
 }
