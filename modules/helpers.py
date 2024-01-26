@@ -10,6 +10,8 @@
     LICENSE: MIT
 """
 
+
+from selenium.webdriver.common.by import By
 from typing import List, Tuple
 import random
 from modules.constants import APP_VERSION
