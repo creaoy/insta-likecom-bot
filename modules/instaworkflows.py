@@ -72,11 +72,15 @@ class Story(InstaWorkFlow):
             return
         
         self.insta.open_story()
+        self.insta.view_story_accpet()
         self.insta.pause_story()
         total_stories = self.insta.get_total_stories()
         
         like_stories_at = get_random_index(total_items=total_stories, nreq=self.profile.likestory)
         comment_stories_at = get_random_index(total_items=total_stories, nreq=self.profile.commentstory)
+
+        self.logger.info(f'#{like_stories_at} to like, #{comment_stories_at} to comment')
+
         for story_idx in range(total_stories):
             stats.stories += 1
             if self.profile.likestory and story_idx in like_stories_at:

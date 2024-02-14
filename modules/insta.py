@@ -743,19 +743,34 @@ class Insta:
         """
         wait = WebDriverWait(self.driver, 10)
         try:
-            wait.until(EC.presence_of_element_located((By.XPATH, f'//img[contains(@alt, "{self.account}")]'))).click()
+            wait.until(EC.presence_of_element_located((By.XPATH, "//div/div/div[2]/div/div/div[1]/div[1]/div[2]/div[2]/section/main/div/header/div/div"))).click()
+            logger.info('[open_story]: Open to view')
+            return True
+        except Exception as ex:
+            logger.error(f'[open_story] Error: {ex}')
+        return False
+    
+    def view_story_accpet(self) -> bool:
+        """
+        Accepts story view for a user if window is present
+        """
+        wait = WebDriverWait(self.driver, 1)
+        try:
+            wait.until(EC.presence_of_element_located((By.XPATH, "//div/div/div[2]/div/div/div[1]/div[1]/div/div/div/div/div[2]/div/div[3]/div"))).click()
+            logger.info('[accpet_story]: Accept to view')
             return True
         except Exception as ex:
             logger.error(f'[open_story] Error: {ex.__class__.__name__}')
         return False
-    
+
     def pause_story(self) -> bool:
         """
         Pauses a story
         """
         wait = WebDriverWait(self.driver, 5)
         try:
-            wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '._ac0m'))).find_element(By.CSS_SELECTOR, 'svg[aria-label="Pause"]').click()
+            wait.until(EC.presence_of_element_located((By.XPATH, "//div/div/div[3]/div/div/div[3]/div/section/div[1]/div/div/div[1]/div[1]/div[2]/div[2]/div[2]"))).click()
+            logger.error(f'[pause_story] Pause')
             return True
         except Exception as ex:
             logger.error(f'[pause_story] Error: {ex.__class__.__name__}')
@@ -763,17 +778,20 @@ class Insta:
     
     def like_story(self) -> bool | None:
         """
-        Pauses a story
+        Like a story
         """
+        logger.info('[like_story]: Start')
         wait = WebDriverWait(self.driver, 2)
         try:
-            wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '._abx4'))).find_element(By.CSS_SELECTOR, 'svg[aria-label="Like"]').click()
+            wait.until(EC.presence_of_element_located((By.XPATH, "//div/div/div[3]/div/div/div[3]/div/section/div[1]/div/div/div[1]/div[2]/div[2]/div[1]/div[2]/span/div"))).click()
+            logger.info('[like_story]: Liked')
+            
             return True
         except Exception as ex:
-            if self.driver.find_element(By.CSS_SELECTOR, '._abx4').find_element(By.CSS_SELECTOR, 'svg[aria-label="Unlike"]'):
+            if self.driver.find_element(By.XPATH, "//div/div/div[3]/div/div/div[3]/div/section/div[1]/div/div/div[1]/div[2]/div[2]/div[1]/div[2]/span/div").find_element(By.CSS_SELECTOR, 'svg[aria-label="Unlike"]'):
                 logger.info('[like_story]: Already liked')
                 return None
-            logger.error(f'[like_story] Error: {ex.__class__.__name__}')
+            logger.error(f'[like_story] Error: {ex}')
         return False
 
     def next_story(self):
@@ -782,10 +800,11 @@ class Insta:
         """
         wait = WebDriverWait(self.driver, 10)
         try:
-            wait.until(EC.presence_of_element_located((By.XPATH, '//button[contains(@aria-label, "Next")]'))).click()
+            wait.until(EC.presence_of_element_located((By.XPATH, "//div/div/div[3]/div/div/div[3]/div/section/div[1]/div/div/div[2]/div[2]"))).click()
+            logger.info('[next_story]: Next')
             return True
         except Exception as ex:
-            logger.error(f'[next_story] Error: {ex.__class__.__name__}')
+            logger.error(f'[next_story] Error: {ex}')
         return False
     
     def get_total_stories(self) -> int:
@@ -794,10 +813,13 @@ class Insta:
         """
         wait = WebDriverWait(self.driver, 10)
         try:
-            return len(wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '._ac3r')))
-                       .find_elements(By.CSS_SELECTOR, '._ac3n'))
+            # Find all elements matching the given XPath
+            story_elements = wait.until(EC.presence_of_all_elements_located((By.XPATH, "//div/div/div[3]/div/div/div[3]/div/section/div[1]/div/div/div[1]/div[1]/div[1]/div")))
+            logger.info(f'[total_story]: {len(story_elements)} stories found')
+            # Return the count of found elements
+            return len(story_elements)
         except Exception as ex:
-            logger.error(f'[get_total_stories] Error: {ex.__class__.__name__}')
+            logger.error(f'[get_total_stories] Error: {ex}')
         return 0
     
     def comment_on_story(self, text) -> bool:
@@ -806,8 +828,9 @@ class Insta:
         """
         wait = WebDriverWait(self.driver, 10)
         try:
-
-            cmt = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '._ac12'))).find_element(By.CSS_SELECTOR, '._abx2')
+            # cmt = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '._ac12'))).find_element(By.CSS_SELECTOR, '._abx2')
+            cmt = wait.until(EC.presence_of_element_located((By.XPATH, "//div/div/div[3]/div/div/div[3]/div/section/div[1]/div/div/div[1]/div[2]/div[2]/div[1]/div[1]/div[1]/textarea")))
+            
             cmt.click()
             time.sleep(0.5)
             cmt.send_keys(text)
