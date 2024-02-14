@@ -14,6 +14,10 @@
 from typing import List, Tuple
 import random
 from modules.constants import APP_VERSION
+from ollama import Client
+#TODO: move url to config
+client = Client(host='http://localhost:11434')
+STORY = "As a professional spiritual life coach, you discuss work-life balance, mindfulness, living harmoniously, and maintaining a healthy diet."
 
 
 def remove_blanks(lst: List) -> List:
@@ -66,12 +70,51 @@ def get_random_index(total_items: int, nreq: int, all_specifier=111) -> list:
     return random.sample(range(total_items), nreq)
 
 
-def generate_random_comment(comments):
+def generate_random_comment(comments, generate_with_ai = False, description = ''):
     """
     Returns a random comment from a list of comments
     """
-    return comments[random.randint(0, len(comments)-1)]
+    if generate_with_ai:
+        """
+        Generates an AI-based comment based on the given description using Ollama Local LLM.
+        """
+        # Define the prompt for the AI model
+        prompt = f"{STORY} Generate a creative instagram comment with no hashtags for the following description on post: {description}. Make comment short, less then 80 characters. Make comment end with engaging question."
+        
+        response = client.chat(model='mistral', messages=[
+        {
+            'role': 'user',
+            'content': prompt,
+        },
+        ])
+        
+        # Extract the generated comment from the response
+        generated_comment = response['message']['content']
+        print(generated_comment)        
+        
+        return generated_comment
+    else: 
+        return comments[random.randint(0, len(comments)-1)]
 
+def generate_ai_comment(description = ''):
+    """
+    Generates an AI-based comment based on the given description using Ollama Local LLM.
+    """
+    # Define the prompt for the AI model
+    prompt = f"Generate a creative instagram comment for the following description: {description}. Make comment short, less then 80 characters. Make comment end with engaging question. "
+    
+    response = client.chat(model='mistral', messages=[
+    {
+        'role': 'user',
+        'content': description,
+    },
+    ])
+    print(response['message']['content'])
+    
+    # Extract the generated comment from the response
+    generated_comment = response['message']['content']
+    
+    return generated_comment
 
 def display_intro():
 

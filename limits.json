@@ -4,12 +4,12 @@
         "stories": 1000,
         "story_likes": 600,
         "comment_likes": 1500,
-        "accounts": 800,
+        "accounts": 8000,
         "comments": 1000
     },
     "hourly": {
         "likes": 350,
-        "accounts": 120,
-        "comments": 200
+        "accounts": 1200,
+        "comments": 99
     }
 }

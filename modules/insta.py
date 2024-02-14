@@ -582,6 +582,28 @@ class Insta:
         if not all([posttags, matchtags]):
             return False
         return sum([tag in posttags for tag in matchtags]) >= min_match
+    
+    def get_post_description(self, author_username) -> str:
+        """
+        In our case we need to take first comment and compare username with author
+        """
+        wait = WebDriverWait(self.driver, 2)
+        try:
+            comment_elements = wait.until(EC.presence_of_all_elements_located((By.XPATH, "//div[@class='_a9zr']")))
+        except Exception as ex:
+            logger.error(f'{ex.__class__.__name__} {str(ex)}')
+            return ""
+        
+        if not comment_elements:
+            return ""
+        
+        user, comment = self.get_user_and_comment_from_element(comment_elements[0])
+
+        logger.info(f'user {user}, comment: {comment}')
+        if user == author_username:
+            return comment
+        else:
+            return ""
 
     def get_comment_usernames_from_post(self) -> List[str]:
         """
@@ -609,6 +631,7 @@ class Insta:
         try:
             username = comment_el.find_element(By.CSS_SELECTOR, '._a9zc').text
             comment = comment_el.find_element(By.CSS_SELECTOR, '._a9zs').text
+
         except Exception as ex:
             logger.error(f'{ex.__class__.__name__} {str(ex)}')
         return (username, comment)

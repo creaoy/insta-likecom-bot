@@ -10,7 +10,7 @@
 """
 
 from modules.exceptions import InvalidAccountError
-from modules.helpers import get_delay, get_random_index, generate_random_comment
+from modules.helpers import get_delay, get_random_index, generate_random_comment, generate_ai_comment
 import time
 from typing import List, Callable
 from modules.insta import TParam
@@ -184,13 +184,19 @@ class Post(InstaWorkFlow):
         if self.profile.skipcommented and self.insta.is_commented():
             self.logger.info(f'[target: {target}] Already commented on this post')
             return
-        
+
         # generating comment text
         comment_text = ''
         if self.profile.onecomment:
             comment_text = self.profile.onecomment
         else:
-            comment_text = generate_random_comment(self.profile.comments)
+            # get first comment
+            post_description = self.insta.get_post_description(target)
+            if post_description:
+                comment_text = generate_random_comment(self.profile.comments, True, post_description)
+            else:
+                comment_text = generate_random_comment(self.profile.comments)
+            
         
         # adding postscript
         if self.profile.postscript:
@@ -284,7 +290,7 @@ class Reel(InstaWorkFlow):
         if self.profile.onecomment:
             comment_text = self.profile.onecomment
         else:
-            comment_text = generate_random_comment(self.profile.comments)
+            comment_text = generate_random_comment(self.profile.comments, True)
         
         # adding postscript
         if self.profile.postscript:

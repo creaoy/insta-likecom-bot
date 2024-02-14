@@ -5,3 +5,7 @@ driver
 env
 venv
 .vscode
+profile.json
+profile2.json
+profileF.json
+stats/*.json
