@@ -9,6 +9,7 @@ profile.json
 profile2.json
 profileF.json
 stats/*.json
+.pytest_cache
 generated_images/*
 .DS_Store
 alembic.ini
