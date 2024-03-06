@@ -74,7 +74,12 @@ class Story(InstaWorkFlow):
     
     def interact(self, target, stats: 'Stats') -> None | bool:
 
-        if any([not self.profile.viewstory, self.is_private]):
+        if not self.profile.viewstory:
+            self.logger.info(f"[{target}] '--viewstory' argument not set. Skipping stories.")
+            return 
+        
+        if self.is_private:
+            self.logger.info(f"[{target}] Private account. Skipping stories.")
             return 
         
         if not self.insta.is_story_present():
