@@ -1,19 +1,41 @@
 # insta-likecom-bot
+![License](https://img.shields.io/static/v1?label=license&message=MIT&color=green)
+![Open Source](https://img.shields.io/static/v1?label=OpenSource&message=Yes&color=brightgreen)
+![Version](https://img.shields.io/static/v1?label=version&message=v.3.0.5&color=blue)
+![Issues](https://img.shields.io/github/issues/shine-jayakumar/insta-likecom-bot)
+![ClosedIssues](https://img.shields.io/github/issues-closed-raw/shine-jayakumar/insta-likecom-bot)
+![Contributors](https://img.shields.io/github/contributors/shine-jayakumar/insta-likecom-bot)
+![LastCommit](https://img.shields.io/github/last-commit/shine-jayakumar/insta-likecom-bot)
+![TotalCommits](https://badgen.net/github/commits/shine-jayakumar/insta-likecom-bot)
+[![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/shine-jayakumar/insta-likecom-bot/issues)
+
+
+### Automates likes and comments on an instagram account or tag
+
+
+<p align="center">
+<img src="https://github.com/shine-jayakumar/insta-likecom-bot/blob/master/instalikecombot.png"/>
+</p>
 
 insta-likecom-bot is an instagram bot written in python to automatically like and comment on an account or tag.
 
 **Table of Contents**
-- [Features](#features "Features")
-- [Requirements](#requirements "Requirements")
-- [Installation](#installation "Installation")
-- [Options](#options "Options")
-- [Usage](#usage "Usage")
-- [Examples](#examples "Examples")
-- [Version Updates](#version-updates "Version Updates")
-- [Frequenty Asked Questions](#fAQs "FAQs")
-- [Report a Bug](#issue "Report an Issue")
-- [License](#license "License")
-- [Donations](#donations "Donations")
+- [insta-likecom-bot](#insta-likecom-bot)
+    - [Automates likes and comments on an instagram account or tag](#automates-likes-and-comments-on-an-instagram-account-or-tag)
+  - [Features](#features)
+  - [Requirements](#requirements)
+  - [Installation](#installation)
+    - [.env file](#env-file)
+    - [Olama](#olama)
+    - [Run script quickstart](#run-script-quickstart)
+  - [Options](#options)
+  - [Usage](#usage)
+  - [Examples](#examples)
+  - [Version Updates](#version-updates)
+  - [FAQs](#faqs)
+  - [Issue](#issue)
+  - [LICENSE](#license)
+  - [Donations](#donations)
 
 
 ## Features
@@ -374,7 +396,19 @@ instalimits.json
 
 
 ## Version Updates
-Version **v.3.0.4** (latest)
+
+Version **v.3.0.5** (latest)
+
+Changes:
+- DOM locators isolated to a .json file
+- Fetches latest version of locators from repo
+
+Bug Fixes:
+- Updated DOM locators for Instagram elements
+
+<br/>
+
+Version **v.3.0.4**
 
 Feature addition:
 - Reels interaction added
