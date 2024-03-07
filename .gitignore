@@ -9,3 +9,6 @@ profile.json
 profile2.json
 profileF.json
 stats/*.json
+generated_images/*
+.DS_Store
+alembic.ini

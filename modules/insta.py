@@ -34,9 +34,11 @@ from selenium.webdriver import ActionChains
 import os
 import re
 import time
+import random
 from datetime import datetime
 from sys import platform
 import sys
+import base64
 
 from modules.applogger import AppLogger
 from typing import List, Tuple
@@ -93,6 +95,19 @@ def retry(func):
         return status
     return wrapper
 
+
+def random_wait(base_wait: int, variance: int = 1) -> int:
+    """
+    Generates a random wait time around a base value.
+
+    Args:
+    base_wait (int): The base wait time in seconds.
+    variance (int): The maximum deviation from the base wait time, in seconds.
+
+    Returns:
+    int: A random wait time.
+    """
+    return random.randint(base_wait - variance, base_wait + variance)
 
 class Insta:
     def __init__(self, username, password, timeout=30, browser='chrome', headless=False, profile:str = None) -> None:
@@ -219,6 +234,7 @@ class Insta:
         """
         try:
             self.driver.get(self.targeturl)
+            time.sleep(random_wait(1))
             # if unable to load the page
             if not self.is_page_loaded():
                 logger.info("[open_target] Unable to load the page. Retrying...")
@@ -447,7 +463,8 @@ class Insta:
                 logger.info(f'[is_private] text=>({text}) found.')
                 return True        
             except:
-                logger.info(f'[is_private]: text=>({text}) not found')
+                return False        
+                #logger.info(f'[is_private]: text=>({text}) not found')
         return False
     
     def is_2factor_present(self) -> bool:
@@ -526,7 +543,7 @@ class Insta:
                     else:
                         logger.info('Scrolling')
                         scroll_into_view(self.driver, username_links[-1])
-                        time.sleep(2)
+                        time.sleep(random_wait(3))
                         tries += 1
 
                 except StaleElementReferenceException:
@@ -729,7 +746,7 @@ class Insta:
         """
         Checks if story is present
         """
-        wait = WebDriverWait(self.driver, 5)
+        wait = WebDriverWait(self.driver, random_wait(5))
         try:
             is_disabled = wait.until(EC.presence_of_element_located((By.XPATH, '//div[contains(@class, "_aarf")]'))).get_attribute('aria-disabled')
             return is_disabled == 'false'
@@ -741,39 +758,62 @@ class Insta:
         """
         Opens story for a user
         """
-        wait = WebDriverWait(self.driver, 10)
+        wait = WebDriverWait(self.driver, random_wait(10))
         try:
             wait.until(EC.presence_of_element_located((By.XPATH, "//div/div/div[2]/div/div/div[1]/div[1]/div[2]/div[2]/section/main/div/header/div/div"))).click()
             logger.info('[open_story]: Open to view')
-            return True
-        except Exception as ex:
-            logger.error(f'[open_story] Error: {ex}')
-        return False
-    
-    def view_story_accpet(self) -> bool:
-        """
-        Accepts story view for a user if window is present
-        """
-        wait = WebDriverWait(self.driver, 1)
-        try:
-            wait.until(EC.presence_of_element_located((By.XPATH, "//div/div/div[2]/div/div/div[1]/div[1]/div/div/div/div/div[2]/div/div[3]/div"))).click()
-            logger.info('[accpet_story]: Accept to view')
+
+            story_accept = self.driver.find_element(By.XPATH, "//div/div/div[2]/div/div/div[1]/div[1]/div/div/div/div/div[2]/div/div[3]/div")
+            if story_accept:
+                story_accept.click()
+                logger.info('[accpet_story]: Accept to view')
+                return True
             return True
         except Exception as ex:
             logger.error(f'[open_story] Error: {ex.__class__.__name__}')
         return False
+    
+    # def view_story_accpet(self) -> bool:
+    #     """
+    #     Accepts story view for a user if window is present
+    #     """
+    #     wait = WebDriverWait(self.driver, 1)
+    #     try:
+    #         wait.until(EC.presence_of_element_located((By.XPATH, "//div/div/div[2]/div/div/div[1]/div[1]/div/div/div/div/div[2]/div/div[3]/div"))).click()
+    #         logger.info('[accpet_story]: Accept to view')
+    #         return True
+    #     except Exception as ex:
+    #         logger.error(f'[open_story] Error: {ex.__class__.__name__}')
+    #     return False
 
     def pause_story(self) -> bool:
         """
         Pauses a story
         """
-        wait = WebDriverWait(self.driver, 5)
+        wait = WebDriverWait(self.driver, random_wait(3))
         try:
-            wait.until(EC.presence_of_element_located((By.XPATH, "//div/div/div[3]/div/div/div[3]/div/section/div[1]/div/div/div[1]/div[1]/div[2]/div[2]/div[2]"))).click()
-            logger.error(f'[pause_story] Pause')
+            story_pause = self.driver.find_element(By.XPATH, "//div/div/div[3]/div/div/div[3]/div/section/div[1]/div/div/div[1]/div[1]/div[2]").find_element(By.CSS_SELECTOR, 'svg[aria-label="Pause"]')
+            if story_pause:
+                story_pause.click()
+                logger.info(f'[pause_story] Pause')
+            else:
+                logger.error(f'[pause_story] Error')
+            # wait.until(EC.presence_of_element_located((By.XPATH, "//div/div/div[3]/div/div/div[3]/div/section/div[1]/div/div/div[1]/div[1]/div[2]")).find_element(By.CSS_SELECTOR, 'svg[aria-label="Pause"]')).click()
             return True
         except Exception as ex:
             logger.error(f'[pause_story] Error: {ex.__class__.__name__}')
+        return False
+    
+    def get_story_image(self) -> str:
+        """
+        Screenshot a story
+        """
+        try:
+            story = self.driver.find_element(By.XPATH, "//div/div/div[3]/div/div/div[3]/div/section/div[1]/div/div/div[1]/div[2]/div[1]/div")
+            # print(story.screenshot_as_base64)
+            return base64.b64decode(story.screenshot_as_base64)
+        except Exception as ex:
+            logger.error(f'[image_story] Error: {ex.__class__.__name__}')
         return False
     
     def like_story(self) -> bool | None:
@@ -788,10 +828,14 @@ class Insta:
             
             return True
         except Exception as ex:
-            if self.driver.find_element(By.XPATH, "//div/div/div[3]/div/div/div[3]/div/section/div[1]/div/div/div[1]/div[2]/div[2]/div[1]/div[2]/span/div").find_element(By.CSS_SELECTOR, 'svg[aria-label="Unlike"]'):
-                logger.info('[like_story]: Already liked')
-                return None
-            logger.error(f'[like_story] Error: {ex}')
+            try:
+                if self.driver.find_element(By.XPATH, "//div/div/div[3]/div/div/div[3]/div/section/div[1]/div/div/div[1]/div[2]/div[2]/div[1]/div[2]/span/div").find_element(By.CSS_SELECTOR, 'svg[aria-label="Unlike"]'):
+                    logger.info('[like_story]: Already liked')
+                    return None
+            except Exception as ex2:
+                logger.error(f'[image_story] Error: {ex2.__class__.__name__}')
+                return False
+            logger.error(f'[like_story] Error: {ex.__class__.__name__}')
         return False
 
     def next_story(self):
@@ -804,7 +848,7 @@ class Insta:
             logger.info('[next_story]: Next')
             return True
         except Exception as ex:
-            logger.error(f'[next_story] Error: {ex}')
+            logger.error(f'[next_story] Error: {ex.__class__.__name__}')
         return False
     
     def get_total_stories(self) -> int:

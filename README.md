@@ -1,21 +1,4 @@
 # insta-likecom-bot
-![License](https://img.shields.io/static/v1?label=license&message=MIT&color=green)
-![Open Source](https://img.shields.io/static/v1?label=OpenSource&message=Yes&color=brightgreen)
-![Version](https://img.shields.io/static/v1?label=version&message=v.3.0.4&color=blue)
-![Issues](https://img.shields.io/github/issues/shine-jayakumar/insta-likecom-bot)
-![ClosedIssues](https://img.shields.io/github/issues-closed-raw/shine-jayakumar/insta-likecom-bot)
-![Contributors](https://img.shields.io/github/contributors/shine-jayakumar/insta-likecom-bot)
-![LastCommit](https://img.shields.io/github/last-commit/shine-jayakumar/insta-likecom-bot)
-![TotalCommits](https://badgen.net/github/commits/shine-jayakumar/insta-likecom-bot)
-[![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/shine-jayakumar/insta-likecom-bot/issues)
-
-
-### Automates likes and comments on an instagram account or tag
-
-
-<p align="center">
-<img src="https://github.com/shine-jayakumar/insta-likecom-bot/blob/master/instalikecombot.png"/>
-</p>
 
 insta-likecom-bot is an instagram bot written in python to automatically like and comment on an account or tag.
 
@@ -64,7 +47,38 @@ View the [requirements.txt](https://github.com/shine-jayakumar/insta-likecom-bot
 ## Installation
 ```sh
 pip install -r requirements.txt
+
+- Database
+cd docker
+docker-compose -f stack.yml up
 ```
+
+### .env file
+```
+cp example.env .env
+```
+or
+```
+   DB_URL="your_database_url_here"
+   OPENAI_API_KEY="My API Key"
+```
+
+### Olama
+- Intall https://ollama.com/
+- Pull model for image recognition
+```
+ollama pull llava
+```
+
+### Run script quickstart
+```
+cp example.profile.json profile.json
+# provide login data
+python3 ilcbot.py -pr profile.json -lm limits.json
+```
+
+
+
 ## Options
 Required arguments
 | Argument | Description |

@@ -10,10 +10,11 @@
 """
 
 from modules.exceptions import InvalidAccountError
-from modules.helpers import get_delay, get_random_index, generate_random_comment, generate_ai_comment
+from modules.helpers import get_delay, get_random_index, generate_random_comment, generate_ai_comment_for_story
 import time
 from typing import List, Callable
 from modules.insta import TParam
+from modules.database import DbHelpers
 
 
 class InstaWorkFlow:
@@ -21,7 +22,6 @@ class InstaWorkFlow:
     def __init__(self, insta: 'Insta', profile: 'Profile'):
         self.insta = insta
         self.profile = profile
-
 
 class Followers(InstaWorkFlow):
     
@@ -36,22 +36,32 @@ class Followers(InstaWorkFlow):
         
         target_list = []
 
-        for target in self.profile.target:
-            self.logger.info(f"Setting target to: {target}")
-            self.insta.target(target)
+        for target_name in self.profile.target:
+            target_id = DbHelpers().get_or_create_account(target_name)
+            #get list of not private accounts
+            followers = DbHelpers().get_followers(target_id)
+            
+            if followers:
+                self.logger.info(f"Loaded followers from database for {target_name}")
+                target_list.extend([follower.name for follower in followers])
+            else:
+                self.logger.info(f"Setting target to: {target_name}")
+                self.insta.target(target_name)
 
-            self.logger.info(f"Opening target {target}")
-            if not self.insta.open_target():
-                self.logger.error(f'Invalid tag or account: {target}')
-                raise InvalidAccountError(f"Invalid tag or account : {target}")
-                
-            self.logger.info(f'Finding followers of {target}')
-            followers = self.insta.get_followers(amount = self.profile.followersamount)
-            self.logger.info(followers)
-            self.logger.info(f'Found {len(followers)} followers for {target}')
-            target_list.extend(followers)
+                self.logger.info(f"Opening target {target_name}")
+                if not self.insta.open_target():
+                    self.logger.error(f'Invalid tag or account: {target_name}')
+                    raise InvalidAccountError(f"Invalid tag or account : {target_name}")
+                    
+                self.logger.info(f'Finding followers of {target_name}')
+                followers_data = self.insta.get_followers(amount = self.profile.followersamount)
+                self.logger.info(followers_data)
+                self.logger.info(f'Found {len(followers_data)} followers for {target_name}')
+                DbHelpers().save_targets_to_db(followers_data, target_id)
+                target_list.extend(followers_data)
 
-        stats.accounts = len(target_list)
+        # stats.accounts = len(target_list)
+        
         return target_list
     
 
@@ -72,8 +82,9 @@ class Story(InstaWorkFlow):
             return
         
         self.insta.open_story()
-        self.insta.view_story_accpet()
-        self.insta.pause_story()
+
+        time.sleep(get_delay(delay=(2,3)))
+
         total_stories = self.insta.get_total_stories()
         
         like_stories_at = get_random_index(total_items=total_stories, nreq=self.profile.likestory)
@@ -81,23 +92,49 @@ class Story(InstaWorkFlow):
 
         self.logger.info(f'#{like_stories_at} to like, #{comment_stories_at} to comment')
 
+        # get target_id from target name
+        target_id = DbHelpers().get_or_create_account(target)
+
         for story_idx in range(total_stories):
             stats.stories += 1
+
+            # image = self.insta.get_story_image()
+            # if image:
+            #     story_comment = generate_ai_comment_for_story(image)
+
+            # if not self.insta.next_story():
+            #     break
+            # time.sleep(1)
+            # self.insta.pause_story()
+            # time.sleep(1)
+            # continue
+
             if self.profile.likestory and story_idx in like_stories_at:
                 if self.insta.like_story():
                     stats.story_likes += 1
+                    # save to story_stats db 
+                    DbHelpers().save_story_stats(target_id, 0, None, None)
                     self.logger.info(f'[{target}] Liked story # {story_idx+1}')
+                self.insta.pause_story()
                 time.sleep(get_delay(delay=(2,10)))
 
             if self.profile.commentstory and story_idx in comment_stories_at:
-                comment_text = generate_random_comment(self.profile.comments)
-                if self.insta.comment_on_story(comment_text):
-                    stats.story_comments += 1
-                    self.logger.info(f'[{target}] Commented on story # {story_idx+1}: {comment_text}')
-                time.sleep(get_delay(delay=(2,10)))
+                self.insta.pause_story()
+                time.sleep(get_delay(delay=(1,2)))
+                image_bytes = self.insta.get_story_image()
+                if image_bytes:
+                    texts = generate_ai_comment_for_story(image_bytes)
+                    #comment_text = generate_random_comment(self.profile.comments)
+                    if texts is not None:
+                        if self.insta.comment_on_story(texts['comment']):
+                            stats.story_comments += 1
+                            # save to story_stats db 
+                            DbHelpers().save_story_stats(target_id, 0, texts['image_description'], texts['comment'])
+                        self.logger.info(f'[{target}] Commented on story # {story_idx+1}: {texts["comment"]}')
+                        time.sleep(get_delay(delay=(2,10)))
             
             self.insta.next_story()
-            time.sleep(1)
+            time.sleep(get_delay(delay=(1,2)))
             stats.save()
         return True
 

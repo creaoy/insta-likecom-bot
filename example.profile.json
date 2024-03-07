@@ -1,0 +1,14 @@
+{   
+    "username": "",
+    "password":"",
+    "target": "target_list.txt",
+    "numofposts": "1",
+    "comments": "comments.txt",
+    "viewstory": true,
+    "likestory": 1,
+    "commentstory": 1,
+    "findfollowers": 1,
+    "skipcommented": 1,
+    "onlystory": 1,
+    "followersamount": 100
+}

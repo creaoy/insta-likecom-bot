@@ -23,3 +23,7 @@ urllib3==1.26.8
 webdriver-manager==4.0.0
 wsproto==1.0.0
 ollama
+openai
+sqlalchemy
+pymysql
+alembic

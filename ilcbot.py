@@ -19,6 +19,11 @@ from modules.profile import Profile
 from modules.instaworkflows import Followers, Story, Post, Reel
 from modules.exceptions import *
 from modules.helpers import display_intro
+from dotenv import load_dotenv
+load_dotenv()
+
+#DB connect
+from modules.database import DbHelpers
 
 
 args = parser.parse_args()
@@ -133,6 +138,7 @@ try:
         if private_account:
             stats.private_accounts += 1
             logger.info(f'[target: {target}] Private account')
+            DbHelpers.mark_account_as_private(target)
         
         Story(insta, profile, is_private=private_account, logger=logger).interact(target, stats)
         Post(insta, profile, logger).interact(target, private_account, stats)
@@ -145,7 +151,9 @@ try:
 
 except Exception as ex:
     logger.error(f"Script ended with error")
+    print(ex)
     logger.error(f'Error: [{ex.__class__.__name__}] - {str(ex)}',exc_info=1)
+    
 
 finally:
     if insta:
