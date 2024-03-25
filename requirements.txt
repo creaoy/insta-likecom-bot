@@ -27,3 +27,4 @@ openai
 sqlalchemy
 pymysql
 alembic
+schedule

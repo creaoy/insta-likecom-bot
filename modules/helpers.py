@@ -10,7 +10,6 @@
     LICENSE: MIT
 """
 
-
 from typing import List, Tuple
 import random
 from modules.constants import APP_VERSION
@@ -318,3 +317,11 @@ def display_intro():
     
     """
     print(intro)
+
+
+def save_to_file(content, file_path):
+    if type(content) is list:
+        string_content = '\n'.join(str(s) for s in content)
+        content = string_content
+    with open(file_path, "w") as file:
+        file.write(content)
