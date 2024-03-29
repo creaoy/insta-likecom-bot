@@ -124,7 +124,7 @@ try:
     # in which case, script will save the Login Info
     else:
         logger.info(f"Attempting to log in with {profile.username}")
-        if not insta.login():
+        if not insta.login(validate=False):
             raise LoginFailedError("Failed to login. Incorrect username/password, or 2 factor verification is active.")
         logger.info("Login successful")
 
