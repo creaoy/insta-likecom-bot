@@ -12,3 +12,4 @@ stats/*.json
 generated_images/*
 .DS_Store
 alembic.ini
+profile/*

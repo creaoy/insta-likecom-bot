@@ -19,11 +19,9 @@ from modules.profile import Profile
 from modules.instaworkflows import Followers, Story, Post, Reel
 from modules.exceptions import *
 from modules.helpers import display_intro
-from dotenv import load_dotenv
-load_dotenv()
 
 #DB connect
-from modules.database import DbHelpers
+from modules.database import DbHelpers 
 
 
 args = parser.parse_args()
@@ -122,6 +120,11 @@ try:
 
     for target in target_list:
         
+        # check for the inbox messages
+        logger.info(f'Checking inbox for a new messages...')
+        insta.check_inbox()
+        # continue
+
         # setting target
         logger.info(f'Setting target to: {target}')
         insta.target(target)
@@ -144,6 +147,8 @@ try:
         Post(insta, profile, logger).interact(target, private_account, stats)
         Reel(insta, profile, logger).interact(target, private_account, stats)
         stats.save() 
+
+        
 
     logger.info("Script finished successfully")
     stats.log()

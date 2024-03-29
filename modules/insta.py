@@ -24,6 +24,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.keys import Keys
 from selenium.common.exceptions import StaleElementReferenceException
 from selenium.common.exceptions import ElementClickInterceptedException
+from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.remote.webelement import WebElement
 
 from selenium.webdriver.chrome.service import Service as ChromeService
@@ -95,6 +96,14 @@ def retry(func):
         return status
     return wrapper
 
+@retry
+def click_element_with_retry(element):
+    try:
+        element.click()
+        return True  # Click successful, exit the loop
+    except StaleElementReferenceException:
+        print("[click_element_with_retry]: Attempt failed due to stale element reference. Retrying...")
+        time.sleep(1)  # Wait for a short duration before retrying
 
 def random_wait(base_wait: int, variance: int = 1) -> int:
     """
@@ -281,6 +290,122 @@ class Insta:
         except:
             return False
         return True
+
+
+    def check_inbox(self) -> bool | None:
+        """
+        Checks for new messages in the inbox
+        """
+        # chats_list = wait.until(EC.presence_of_element_located((By.XPATH, '//div/div/div[2]/div/div/div[1]/div[1]/div[2]/section/div/div/div/div[1]/div/div[1]/div/div[3]/div/div/div/div/div[2]/div')))
+        #add check for new messages
+
+        self.driver.get(INSTA_URL + '/direct/inbox/')
+        wait = WebDriverWait(self.driver, timeout=10)
+        try:
+            logger.info('Open chat messages')
+
+            #all unread messages
+            #//span[contains(@class,'x6s0dn4 xzolkzo x12go9s9 x1rnf11y xprq8jg x9f619 x3nfvp2 xl56j7k x1tu34mt xdk7pt x1xc55vz x1emribx')]/ancestor::div[@role= 'button']
+
+            # Define the XPath selector
+            xpath_selector_unread_chat = "//span[contains(@class,'x6s0dn4 xzolkzo x12go9s9 x1rnf11y xprq8jg x9f619 x3nfvp2 xl56j7k x1tu34mt xdk7pt x1xc55vz x1emribx')]/ancestor::div[@role= 'button']"
+            # xpath_selector_unread_chat = "//div[contains(@class,'x9f619 x1n2onr6 x1ja2u2z x78zum5 x1iyjqo2 xs83m0k xeuugli x1qughib x6s0dn4 x1a02dak x1q0g3np xdl72j9')]/ancestor::div[@role= 'button']"
+            xpath_selector_chat_text = "//div[contains(@class,'x78zum5 xh8yej3')]/div/span/div"
+            xpath_selector_username = "//div[@class='x1vjfegm']/div/div/div/a"
+
+            # Find all unread messages elements
+            elements = wait.until(EC.presence_of_all_elements_located((By.XPATH, xpath_selector_unread_chat)))
+
+            # Check if elements array is empty
+            if not elements:
+                logger.info('No new messages found. Add logic to check where to followup.')
+                time.sleep(get_delay(10))
+                return True
+            
+            # Log the number of unread messages found
+            logger.info("Found %s unread messages", len(elements))
+            
+                # Click on each element with a delay
+
+            for element in elements:
+                click_element_with_retry(element)
+
+                logger.info(f'click: {element}')
+
+                texts = wait.until(EC.presence_of_all_elements_located((By.XPATH, xpath_selector_chat_text)))
+                # Extract the text of each chat message
+                message_history = '\n'.join([text.text for text in texts])
+
+                # Get the last message from the chat
+                last_message = texts[-1].text if texts else None
+
+                # Print last message
+                logger.info("Last message in the chat: %s", last_message)
+
+                # Print entire message history
+                logger.info("Message history: %s", message_history)
+
+                # Evaluate the XPath expression to get the first <a> element
+                href_element = wait.until(EC.presence_of_element_located((By.XPATH, xpath_selector_username)))
+
+                # Check if href_element is not empty
+                if href_element:
+                    # Get the href attribute value of the <a> element
+                    href_value = href_element.get_attribute("href")
+                    print("href_value:", href_value)
+
+                    # Define a regular expression pattern to extract the username
+                    pattern = r"https://www\.instagram\.com/([^/]+)/"
+                    # Search for the pattern in the href_value
+                    match = re.search(pattern, href_value)
+
+                    # Check if a match is found
+                    if match:
+                        # Extract the username from the matched group
+                        username = match.group(1)
+                        print("Username:", username)
+                    else:
+                        print("Username not found in the href value.")
+
+                else:
+                    print("No <a> element found with the given XPath expression.")
+
+                # Get AI generated message
+                message = get_sales_message(username, last_message, message_history)
+
+                self.send_inbox_message(message)
+
+                time.sleep(random_wait(5))  # 5 seconds delay between clicks
+                # break
+            return True 
+        except TimeoutException:
+            logger.error("Timeout: No unread messages")
+            return False
+        except Exception as ex:
+            print(ex)
+            return False
+        return None
+
+    def send_inbox_message(self, message:str) -> bool | None:
+        """
+        Sends a message to the inbox
+        """
+        logger.info("Prepare to send message")
+        cmt = self.driver.switch_to.active_element
+
+        timeout = random_wait(5)
+        try:
+            human_like_typing(cmt, message)
+            cmt.send_keys(Keys.ENTER)
+
+            self.wait_until_comment_cleared(cmt, timeout)
+        except ElementClickInterceptedException:
+            logger.info("ElementClickInterceptedException")
+            self.driver.execute_script('arguments[0].click();', cmt)
+            self.wait_until_comment_cleared(cmt, timeout)
+        except Exception as ex:
+            print(ex)
+            return False
 
     @retry
     def like(self) -> bool | None:

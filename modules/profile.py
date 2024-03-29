@@ -15,7 +15,7 @@ from modules.applogger import AppLogger
 from modules.exceptions import *
 from modules.constants import COMMENTS
 from typing import List, Tuple
-import re
+import re, os
 from os.path import exists as pathexists
 
 
@@ -290,8 +290,11 @@ class Profile:
 
     def _parse_brprofile(self) -> None:
         """ Loads brprofile """
-        if self.brprofile and not pathexists(self.brprofile):
-            raise InvalidBrowserProfileError(f"Invalid browser profile - {self.brprofile}")
+        if self.brprofile:
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            self.brprofile = os.path.join(current_dir, '../', self.brprofile)
+            if not pathexists(self.brprofile):
+                raise InvalidBrowserProfileError(f"Invalid browser profile - {self.brprofile}")
 
     def _parse_eltimeout(self) -> None:
         """ Loads eltimeout """

@@ -1,19 +1,17 @@
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
-import os
+from modules.variables import *
 import datetime
 
 from sqlalchemy import create_engine
 from sqlalchemy.exc import SQLAlchemyError
 
-
-db_url = os.getenv("DB_URL")
 engine = None 
 
 try:
     # Create the SQLAlchemy engine using the loaded credentials
-    engine = create_engine(db_url)
+    engine = create_engine(DB_URL)
 
     # Use the engine to establish a connection and perform database operations
     # Add your database operations here
@@ -30,6 +28,7 @@ class Account(Base):
     name = Column(String(255), unique=True)  # Specify the length (e.g., 255)
     private = Column(Boolean, default=False) #default
     stage = Column(Integer)
+    thread_id = Column(String(255), default=False, unique=True)  # OpenAI assistant thread id
     last_contacted = Column(DateTime)
     parent_id = Column(Integer, ForeignKey('accounts.id'))
     target = relationship("Account", remote_side=[id], backref="accounts")
@@ -46,43 +45,45 @@ class History(Base):
     #action: 0 - story like, 1 - story comment emoji, 2 - story comment, 3 - story comment with ask
     #action: 100 - post link, 101 - post comment
 
-Base.metadata.create_all(engine)
-
-DB_SESSION = sessionmaker(bind=engine)
-
 
 
 class DbHelpers:
-    def __init__(self) -> None:
-        self.session = DB_SESSION
+    # Initialize the session as a class-level variable
+    session = sessionmaker(bind=engine)()
+
     #mark account as private in database
     def mark_account_as_private(self, account_name: str):
-        session = self.session()
+        session = DbHelpers.session
         session.query(Account).filter(Account.name == account_name).update({Account.private: True})
         session.commit()
     # get or create account in database
     def get_or_create_account(self, name):
-        session = self.session()
-        target = session.query(Account).filter_by(name=name).first()
-        if not target:
-            target = Account(name=name, private=False, stage=0, last_contacted=datetime.datetime.now())
-            session.add(target)
+        session = DbHelpers.session
+        account = session.query(Account).filter_by(name=name).first()
+        if not account:
+            account = Account(name=name, private=False, stage=0, last_contacted=datetime.datetime.now())
+            session.add(account)
             session.commit()
-        return target.id
+        return account
+    # update account
+    def save_to_db(self, account):
+        session = DbHelpers.session
+        session.add(account)
+        session.commit()
     #save story stats to database
     def save_story_stats(self, target_id, action, story_text, comment):
-        session = self.session()
+        session = DbHelpers.session
         story = History(orig_text=story_text, datetime=datetime.datetime.now(), comment=comment, account_id=target_id, action=action)
         session.add(story)
         session.commit()
     #get followers of account
     def get_followers(self, target_id):
-        session = self.session()
+        session = DbHelpers.session
         followers = session.query(Account).filter(Account.parent_id == target_id, Account.private == False).all()
         return followers
     #save targets to database
     def save_targets_to_db(self, target_list, target_id):
-        session = self.session()
+        session = DbHelpers.session
         for target in target_list:
             # Add a check to see if the target is already in the database
             if not session.query(Account).filter_by(name=target).first():
