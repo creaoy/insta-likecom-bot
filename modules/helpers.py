@@ -333,6 +333,25 @@ def generate_ai_comment_for_story(image_bytes):
         return None
 
 
+def get_By_strategy(locator: str) -> tuple[By,str] | tuple[None, None]:
+    """ Returns By strategy and locator (xpath, css selector) """
+    if not locator:
+        return(None, None)
+    if locator.startswith('//'):
+        return By.XPATH, locator
+    return By.CSS_SELECTOR, locator
+
+
+def create_dirs(dirlist: list[str]) -> None:
+    """ Creates directories if doesn't exist """
+    for dirname in dirlist:
+        try:
+            if not os.path.exists(dirname):
+                os.mkdir(dirname)
+        except Exception as ex:
+            print(f'[{ex.__class__.__name__} - {str(ex)}] Error creating director: {dirname}')
+        
+
 def display_intro():
 
     intro = f"""
@@ -348,3 +367,7 @@ def save_to_file(content, file_path):
         content = string_content
     with open(file_path, "w") as file:
         file.write(content)
+
+
+if __name__ == '__main__':
+    pass

@@ -786,10 +786,10 @@ class Insta:
         logger.info('[like_story]: Start')
         wait = WebDriverWait(self.driver, 2)
         try:
-            wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '._abx4'))).find_element(By.CSS_SELECTOR, 'svg[aria-label="Like"]').click()
+            wait.until(EC.presence_of_element_located(get_By_strategy(StoryLocators.like.like_button))).click()
             return True
         except Exception as ex:
-            if self.driver.find_element(By.CSS_SELECTOR, '._abx4').find_element(By.CSS_SELECTOR, 'svg[aria-label="Unlike"]'):
+            if self.driver.find_element(*get_By_strategy(StoryLocators.like.unlike_button)):
                 logger.info('[like_story]: Already liked')
                 return None
             logger.error(f'[like_story] Error: {ex.__class__.__name__}')
@@ -809,8 +809,8 @@ class Insta:
         """ Get total stories """
         wait = WebDriverWait(self.driver, 10)
         try:
-            return len(wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '._ac3r')))
-                       .find_elements(By.CSS_SELECTOR, '._ac3n'))
+            return len(wait.until(EC.presence_of_element_located(
+                get_By_strategy(StoryLocators.count.container))).find_elements(*get_By_strategy(StoryLocators.count.story)))
         except Exception as ex:
             logger.error(f'[get_total_stories] Error: {ex}')
         return 0
