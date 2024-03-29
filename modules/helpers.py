@@ -10,6 +10,10 @@
     LICENSE: MIT
 """
 
+import os
+import base64
+import io
+import uuid
 
 from selenium.webdriver.common.by import By
 from typing import List, Tuple
@@ -17,7 +21,8 @@ import random
 from modules.constants import APP_VERSION
 from ollama import Client
 from openai import OpenAI
-import os
+
+from PIL import Image, ImageDraw, ImageFont
 
 clientOpenAI = OpenAI()
 
@@ -81,8 +86,6 @@ Story comment
 """
 
 
-
-
 def remove_blanks(lst: List) -> List:
     """
     Removes empty elements from a list
@@ -133,7 +136,7 @@ def get_random_index(total_items: int, nreq: int, all_specifier=111) -> list:
     return random.sample(range(total_items), nreq)
 
 
-def generate_random_comment(comments, generate_with_ai = False, description = ''):
+def generate_random_comment(comments, generate_with_ai=False, description=''):
     """
     Returns a random comment from a list of comments
     """
@@ -142,37 +145,51 @@ def generate_random_comment(comments, generate_with_ai = False, description = ''
         Generates an AI-based comment based on the given description using Ollama Local LLM.
         """
         # Define the prompt for the AI model
-        #prompt = f"{STORY} Generate a creative instagram comment with no hashtags for the following description on post: {description}. Make comment short, less then 80 characters. Make comment end with engaging question."
+        # prompt = f"{STORY} Generate a creative instagram comment with no hashtags for the following description on post: {description}. Make comment short, less then 80 characters. Make comment end with engaging question."
         prompt_image = f"{PROMPT} {description}"
-        
+
         print(prompt_image)
-        
+
         response = client.chat(model='mistral', messages=[
         {
             'role': 'user',
             'content': prompt_image,
         },
         ])
-        
+
         # Extract the generated comment from the response
         generated_comment = response['message']['content']
-        # print(generated_comment)        
-        
+        # print(generated_comment)
+
         return generated_comment
-    else: 
+    else:
         return comments[random.randint(0, len(comments)-1)]
-    
-from PIL import Image, ImageDraw, ImageFont
-import base64
-import io
-import uuid
-import os
+
+
+def get_By_strategy(locator: str) -> tuple[By,str] | tuple[None, None]:
+    """ Returns By strategy and locator (xpath, css selector) """
+    if not locator:
+        return (None, None)
+    if locator.startswith('//'):
+        return By.XPATH, locator
+    return By.CSS_SELECTOR, locator
+
+
+def create_dirs(dirlist: list[str]) -> None:
+    """ Creates directories if doesn't exist """
+    for dirname in dirlist:
+        try:
+            if not os.path.exists(dirname):
+                os.mkdir(dirname)
+        except Exception as ex:
+            print(f'[{ex.__class__.__name__} - {str(ex)}] Error creating director: {dirname}')
+
 
 def generate_ai_comment_for_story(image_bytes):
     """
     Returns ai generated comment based on image
     """
-    
+
     prompt = "What is on the image? Don't mention Instagram interface"
     try:
         response = client.chat(model='llava', messages=[
@@ -187,7 +204,7 @@ def generate_ai_comment_for_story(image_bytes):
     except Exception as e:
         print(f"Failed to get image description from Ollama: {e}")
         image_description = None
-    
+
 
 
     # prompt_for_comment = f"{PROMPT} {image_description}"
@@ -215,12 +232,15 @@ def generate_ai_comment_for_story(image_bytes):
     except clientOpenAI.APIConnectionError as e:
         print("The server could not be reached")
         print(e.__cause__)  # an underlying Exception, likely raised within httpx.
+
     except clientOpenAI.RateLimitError as e:
         print("A 429 status code was received; we should back off a bit.")
+
     except clientOpenAI.APIStatusError as e:
         print("Another non-200-range status code was received")
         print(e.status_code)
         print(e.response)
+
     else:
         # Assuming the response object has a 'choices' attribute that is a list of choice objects
         if request.choices:
@@ -246,12 +266,15 @@ def generate_ai_comment_for_story(image_bytes):
     except clientOpenAI.APIConnectionError as e:
         print("The server could not be reached")
         print(e.__cause__)  # an underlying Exception, likely raised within httpx.
+
     except clientOpenAI.RateLimitError as e:
         print("A 429 status code was received; we should back off a bit.")
+
     except clientOpenAI.APIStatusError as e:
         print("Another non-200-range status code was received")
         print(e.status_code)
         print(e.response)
+
     else:
         # Assuming the response object has a 'choices' attribute that is a list of choice objects
         if request.choices:
@@ -259,38 +282,35 @@ def generate_ai_comment_for_story(image_bytes):
             response_for_rank = first_choice.message.content
             print(f"Rank response: {response_for_rank}")
 
-
     # Extract the generated comment from the response
     generated_comment = f"Rank: {response_for_rank}\n {response_for_comment}"
     print(f'Comment: {generated_comment}')
-
-
 
     # Overlay the comment on the image with a black overlay and padding
     image = Image.open(io.BytesIO(image_bytes))
     draw = ImageDraw.Draw(image)
     font = ImageFont.truetype("./arial.ttf", 11)  # Font file is in the same directory as this script
-    
+
     # Split the comment into two lines if it's too long
     if len(generated_comment) > 50:  # Assuming an average of 25 characters can fit in one line
         split_index = generated_comment[:50].rfind(' ')
         generated_comment = generated_comment[:split_index] + '\n' + generated_comment[split_index+1:]
-    
+
     _, _, text_width, text_height = draw.textbbox((0, 0), text=generated_comment, font=font)
     image_width, image_height = image.size
     x = (image_width - text_width) / 2
     y = image_height - text_height - 20  # 20 pixels from the bottom to accommodate two lines and padding
-    
+
     # Calculate padding for the black overlay
     padding = 5
     overlay_width = text_width + padding * 2
     overlay_height = text_height + padding * 2
     overlay_x = x - padding
     overlay_y = y - padding
-    
+
     # Draw black overlay with padding
     draw.rectangle([overlay_x, overlay_y, overlay_x + overlay_width, overlay_y + overlay_height], fill=(0, 0, 0))
-    
+
     # Draw the text over the black overlay
     draw.text((x, y), generated_comment, font=font, fill=(255, 255, 255))
 
@@ -312,11 +332,12 @@ def generate_ai_comment_for_story(image_bytes):
     except ValueError:
         return None
 
+
 def display_intro():
 
     intro = f"""
      ___ _  _ ___ _____ _      _    ___ _  _____ ___ ___  __  __     ___  ___ _____ 
-    
+
     """
     print(intro)
 
