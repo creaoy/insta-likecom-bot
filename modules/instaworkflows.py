@@ -37,7 +37,8 @@ class Followers(InstaWorkFlow):
         target_list = []
 
         for target_name in self.profile.target:
-            target_id = DbHelpers().get_or_create_account(target_name)
+            target = DbHelpers().get_or_create_account(target_name)
+            target_id = target.id
             #get list of not private accounts
             followers = DbHelpers().get_followers(target_id)
             
@@ -98,7 +99,8 @@ class Story(InstaWorkFlow):
         self.logger.info(f'#{like_stories_at} to like, #{comment_stories_at} to comment')
 
         # get target_id from target name
-        target_id = DbHelpers().get_or_create_account(target)
+        target = DbHelpers().get_or_create_account(target)
+        target_id = target.id
 
         for story_idx in range(total_stories):
             stats.stories += 1

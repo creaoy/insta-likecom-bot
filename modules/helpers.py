@@ -21,69 +21,12 @@ import random
 from modules.constants import APP_VERSION
 from ollama import Client
 from openai import OpenAI
-
-from PIL import Image, ImageDraw, ImageFont
+import os, time
+from modules.database import DbHelpers
+from modules.variables import *
 
 clientOpenAI = OpenAI()
-
-#TODO: move url to config
-client = Client(host='http://localhost:11434')
-STORY = "professional spiritual life coach, you discuss work-life balance, mindfulness, living harmoniously, and maintaining a healthy diet."
-
-PROMPT = f"""
-You are a professional marketer and working for {STORY} You need to provide a comment for an Instagram story. Your reply will be based on story description from user
-Use framework: Acknowledge, Complement. You acknowledge something interesting about the story and compliment the author about it. 
-Example: Wow, you have kids. You must be a supermom. 
-where acknowledge: Wow, you have kids
-and complement: You must be a supermom
-Use the same structure for comment: acknowledge on story topic, complement the story owner. Just give me two sentance with acknowledge and complement. 
-
-
-Rules:
-- Make comments short, less than 80 characters.
-- no hashtags
-- avoid explaining yourself
-- pay attention to the text on the image
-
-"""
-#prompt_for_comment = f"Generate a creative Instagram story comment with no hashtags based on this image description: '{image_description}'. Keep the comment under 50 characters and end with an engaging question."
-
-PROMPT_EVALUATE = f"""
-You are a professional marketer. You need to evaluate an Instagram story from image description. 
-Sometimes description does not make sence and you need to evaluate from 0 to 100 the image description and how likely your comment will bring value and would be interesting. 
-The higher evaluation is about family, pets, children, emotional things. 
-
-The story description starts after "==="
-
-
-Topic you talk about: 
-{STORY}
-
-Rules:
-- return just integer number from 0 to 100
-- no description or explanation, just number
-- if screen is black, rank 0
-
-Story description
-===
-"""
-
-PROMPT_EVAL_COMMENT = f"""
-You are a professional quality assurance and working for {STORY} 
-You need to evaluate an Instagram story comment based on image description. How relevant comment is. 
-Image description is provided by user. 
-
-The story comment start after "==="
-
-Rules:
-- return just integer number from 0 to 100
-- no description or explanation, just number
-- if image descripton has black screen mention, then rank 0
-- ignore instagram interface description
-
-Story comment
-===
-"""
+client = Client(host=OLLAMA_URL)
 
 
 def remove_blanks(lst: List) -> List:
@@ -124,6 +67,18 @@ def get_delay(delay: tuple, default: tuple = (1,10)) -> Tuple[int]:
         return delay[0]
     return random.randint(delay[0], delay[1])
 
+def human_like_typing(input_element, message):
+    """
+    Simulate human-like typing by sending keys one by one with random delays.
+    """
+    input_element.click()
+    for char in message:
+        # Type one character
+        input_element.send_keys(char)
+        
+        # Randomly wait between 0.1 and 0.3 seconds before typing the next character
+        time.sleep(random.uniform(0.01, 0.05))
+
 
 def get_random_index(total_items: int, nreq: int, all_specifier=111) -> list:
     """
@@ -145,9 +100,8 @@ def generate_random_comment(comments, generate_with_ai=False, description=''):
         Generates an AI-based comment based on the given description using Ollama Local LLM.
         """
         # Define the prompt for the AI model
-        # prompt = f"{STORY} Generate a creative instagram comment with no hashtags for the following description on post: {description}. Make comment short, less then 80 characters. Make comment end with engaging question."
-        prompt_image = f"{PROMPT} {description}"
-
+        prompt_image = f"{C_COMMENT_PROMPT} {description}"
+        
         print(prompt_image)
 
         response = client.chat(model='mistral', messages=[
@@ -220,7 +174,7 @@ def generate_ai_comment_for_story(image_bytes):
         request = clientOpenAI.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": PROMPT},
+                {"role": "system", "content": C_COMMENT_PROMPT},
                 {"role": "user", "content": f"{image_description}"}
             ],
             temperature=0.7,
@@ -254,7 +208,7 @@ def generate_ai_comment_for_story(image_bytes):
         request = clientOpenAI.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": f"{PROMPT_EVAL_COMMENT} {response_for_comment}"},
+                {"role": "system", "content": f"{C_PROMPT_EVAL_COMMENT} {response_for_comment}"},
                 {"role": "user", "content": image_description}
             ],
             temperature=0.7,
@@ -333,6 +287,89 @@ def generate_ai_comment_for_story(image_bytes):
         return None
 
 
+def get_sales_message(username, last_message, message_history):
+    """
+    Returns ai generated sales message based sales stage
+    """
+    assistant_id = OPENAI_ASSISTANT_ID
+    db_helpers = DbHelpers()
+
+    # first need to get account from DB based on username
+    account = db_helpers.get_or_create_account(username)
+
+    instructions_prompt = ''
+    # Get prompt based on Sales stage
+    if account.stage == 0:
+        # cold prospect
+        # need to send a question query
+        instructions_prompt = INSTRUCTIONS_PROMPT_S2 + message_history
+        account.stage = 2
+        db_helpers.save_to_db(account)
+    elif account.stage == 2:
+        instructions_prompt = INSTRUCTIONS_PROMPT_S3
+        account.stage = 3
+        db_helpers.save_to_db(account)
+    else:
+        #send no message and all stages passed
+        return False
+
+    # Open AI assistant connect, get thread_id
+    thread_id = False
+    if account.thread_id:
+        thread_id = account.thread_id
+    else:
+        thread = clientOpenAI.beta.threads.create()
+        thread_id = thread.id
+        account.thread_id = thread_id
+        db_helpers.save_to_db(account)
+
+    # Now create message we run from a user
+    content_prompt = last_message
+    message = clientOpenAI.beta.threads.messages.create(
+        thread_id=thread_id,
+        role="user",
+        content=content_prompt
+    )
+
+
+    # Creating a run
+    run = clientOpenAI.beta.threads.runs.create(
+        thread_id=thread_id,
+        assistant_id=assistant_id,
+        instructions=instructions_prompt
+    )
+  
+    # Initialize an empty string to store the concatenated messages
+    concatenated_message = ""
+    while run.status in ['queued', 'in_progress', 'cancelling']:
+        time.sleep(1) # Wait for 1 second
+        run = clientOpenAI.beta.threads.runs.retrieve(
+            thread_id=thread_id,
+            run_id=run.id
+        )
+        if run.status == 'completed': 
+            messages = clientOpenAI.beta.threads.messages.list(
+                thread_id=thread_id
+            )
+
+            # Iterate through the messages in reverse order
+            for message in messages.data:
+                # Check if the message's role is 'assistant'
+                if message.role == 'assistant':
+                    # Extract the content of the message
+                    content = message.content
+                    if content:
+                        # Extract the text content
+                        text_content = content[0].text.value
+                        # Concatenate the text content
+                        concatenated_message += text_content + "\n"
+                    # Break out of the loop after finding the last assistant message
+                    break
+
+    # add save stats message we sent
+    return concatenated_message
+
+
 def get_By_strategy(locator: str) -> tuple[By,str] | tuple[None, None]:
     """ Returns By strategy and locator (xpath, css selector) """
     if not locator:
@@ -356,7 +393,8 @@ def display_intro():
 
     intro = f"""
      ___ _  _ ___ _____ _      _    ___ _  _____ ___ ___  __  __     ___  ___ _____ 
-
+     INSTA BOT!!!
+    
     """
     print(intro)
 

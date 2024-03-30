@@ -133,6 +133,11 @@ try:
 
     for target in target_list:
         
+        # check for the inbox messages
+        logger.info(f'Checking inbox for a new messages...')
+        insta.check_inbox()
+        # continue
+
         # setting target
         logger.info(f'Setting target to: {target}')
         insta.target(target)
@@ -155,6 +160,8 @@ try:
         Post(insta, profile, logger).interact(target, private_account, stats)
         Reel(insta, profile, logger).interact(target, private_account, stats)
         stats.save() 
+
+        
 
     logger.info("Script finished successfully")
     stats.log()
