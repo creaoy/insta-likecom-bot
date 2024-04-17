@@ -1,0 +1,13 @@
+{   
+    "username": "johnzakme",
+    "password":"DNeKZVbtBj4crB3d4tEu",
+    "target": "targets.txt",
+    "numofposts": "1",
+    "comments": "comments.txt",
+    "viewstory": true,
+    "likestory": 1,
+    "commentstory": 1,
+    "skipcommented": 1,
+    "followersamount": 1000,
+    "findfollowers":1
+}

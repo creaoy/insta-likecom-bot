@@ -1,8 +1,8 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text, select, func
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from modules.variables import *
-import datetime
+from datetime import datetime, timedelta
 
 from sqlalchemy import create_engine
 from sqlalchemy.exc import SQLAlchemyError
@@ -46,6 +46,7 @@ class History(Base):
     action = Column(Integer)
     # action: 0 - story like, 1 - story comment emoji, 2 - story comment, 3 - story comment with ask
     # action: 100 - post link, 101 - post comment
+    # action: 200 - Message
 
 
 
@@ -65,7 +66,7 @@ class DbHelpers:
         session = DbHelpers.session
         account = session.query(Account).filter_by(name=name).first()
         if not account:
-            account = Account(name=name, private=False, stage=0, last_contacted=datetime.datetime.now())
+            account = Account(name=name, private=False, stage=0, last_contacted=datetime.now())
             session.add(account)
             session.commit()
         return account
@@ -83,30 +84,25 @@ class DbHelpers:
         return target
 
     # get account action after
-    def get_account_with_late_actions(self, target_id, day):
+    def get_accounts_with_late_actions(self, days):
         session = DbHelpers.session
 
-        now = datetime.date.today()
-        day_ago = now - datetime.timedelta(days=day)
-
-        target = session.query(History).filter(History.account_id == target_id, History.datetime > day_ago).all()
-        return target
-
-    # get accounts if action after
-    def get_accounts_with_late_actions(self, day):
-        session = DbHelpers.session
-
-        now = datetime.date.today()
-        day_ago = now - datetime.timedelta(days=day)
-
-        targets = session.query(Account).join(History).filter(History.datetime > day_ago).all()
-        targets.extend(session.query(Account).filter(Account.id.notin_(session.query(History.account_id))).all())
+        now = datetime.utcnow().date()
+        days_ago = now - timedelta(days=days)
+        interacted_account_ids = select(History.account_id) \
+                                .filter(History.datetime >= days_ago) \
+                                .subquery()
+        targets = session.query(Account) \
+                     .filter(~Account.id.in_(interacted_account_ids.select())) \
+                     .order_by(func.random()) \
+                     .limit(100) \
+                     .all()
         return targets
 
     # save story stats to database
     def save_story_stats(self, target_id, action, story_text, comment):
         session = DbHelpers.session
-        story = History(orig_text=story_text, datetime=datetime.datetime.now(), comment=comment, account_id=target_id, action=action)
+        story = History(orig_text=story_text, datetime=datetime.now(), comment=comment, account_id=target_id, action=action)
         session.add(story)
         session.commit()
 
@@ -122,6 +118,6 @@ class DbHelpers:
         for target in target_list:
             # Add a check to see if the target is already in the database
             if not session.query(Account).filter_by(name=target).first():
-                account = Account(name=target, private=False, stage=0, last_contacted=datetime.datetime.now(), parent_id=target_id)
+                account = Account(name=target, private=False, stage=0, last_contacted=datetime.now(), parent_id=target_id)
                 session.add(account)
         session.commit()

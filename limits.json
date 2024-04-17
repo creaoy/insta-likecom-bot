@@ -3,14 +3,19 @@
         "likes": 1000,
         "stories": 1000,
         "story_likes": 600,
+        "story_comments": 600,
         "comment_likes": 1500,
-        "accounts": 8000,
-        "comments": 1000
+        "accounts": 1000,
+        "comments": 100
     },
     "hourly": {
         "likes": 350,
-        "accounts": 120,
-        "comments": 200
+        "accounts": 1000,
+        "comments": 50,
+        "comment_likes": 1000,
+        "story_comments": 200,
+        "story_likes": 100,
+        "stories": 1000
     },
-    "session_timeout": 3600
+    "session_timeout": 3500
 }

@@ -135,7 +135,7 @@ try:
         
         # check for the inbox messages
         logger.info(f'Checking inbox for a new messages...')
-        insta.check_inbox()
+        insta.check_inbox(stats)
         # continue
 
         # setting target

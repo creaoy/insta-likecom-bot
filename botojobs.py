@@ -11,6 +11,7 @@ from modules.profile import Profile
 from modules.instaworkflows import Followers, Story, Post, Reel
 from modules.exceptions import *
 from modules.helpers import display_intro, save_to_file
+import random
 
 # DB connect
 from modules.database import DbHelpers
@@ -122,6 +123,14 @@ def run_ilcbot(target_list):
 
         for target in target_list:
 
+            # check for captacha
+            insta.check_and_solve_captcha()
+
+            # check for the inbox messages
+            logger.info(f'Checking inbox for a new messages...')
+            insta.check_inbox(stats)
+            # continue
+
             # setting target
             logger.info(f'Setting target to: {target}')
             insta.target(target)
@@ -144,9 +153,14 @@ def run_ilcbot(target_list):
             Post(insta, profile, logger).interact(target, private_account, stats)
             Reel(insta, profile, logger).interact(target, private_account, stats)
             stats.save()
+            time.sleep(3)
 
         logger.info("Script finished successfully")
         stats.log()
+        logger.info("Checking inbox every minute")
+        while True:
+            insta.check_inbox(stats)
+            time.sleep(61)
 
     except Exception as ex:
         logger.error(f"Script ended with error")
@@ -162,8 +176,11 @@ def run_ilcbot(target_list):
 
 
 def job():
-    accounts_with_late_actions = DbHelpers().get_accounts_with_late_actions(3)
+    #2 days delay for comment accounts
+    accounts_with_late_actions = DbHelpers().get_accounts_with_late_actions(2)
     list_accounts_with_late_actions = [acc.name for acc in accounts_with_late_actions]
+    # Randomize the order of accounts
+    random.shuffle(list_accounts_with_late_actions)
     save_to_file(list_accounts_with_late_actions, "targets.txt")
 
     run_ilcbot(list_accounts_with_late_actions)

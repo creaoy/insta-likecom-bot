@@ -14,6 +14,7 @@ import os
 import base64
 import io
 import uuid
+from PIL import Image, ImageDraw, ImageFont
 
 from selenium.webdriver.common.by import By
 from typing import List, Tuple
@@ -77,7 +78,7 @@ def human_like_typing(input_element, message):
         input_element.send_keys(char)
         
         # Randomly wait between 0.1 and 0.3 seconds before typing the next character
-        time.sleep(random.uniform(0.01, 0.05))
+        time.sleep(random.uniform(0.005, 0.01))
 
 
 def get_random_index(total_items: int, nreq: int, all_specifier=111) -> list:
@@ -118,25 +119,6 @@ def generate_random_comment(comments, generate_with_ai=False, description=''):
         return generated_comment
     else:
         return comments[random.randint(0, len(comments)-1)]
-
-
-def get_By_strategy(locator: str) -> tuple[By,str] | tuple[None, None]:
-    """ Returns By strategy and locator (xpath, css selector) """
-    if not locator:
-        return (None, None)
-    if locator.startswith('//'):
-        return By.XPATH, locator
-    return By.CSS_SELECTOR, locator
-
-
-def create_dirs(dirlist: list[str]) -> None:
-    """ Creates directories if doesn't exist """
-    for dirname in dirlist:
-        try:
-            if not os.path.exists(dirname):
-                os.mkdir(dirname)
-        except Exception as ex:
-            print(f'[{ex.__class__.__name__} - {str(ex)}] Error creating director: {dirname}')
 
 
 def generate_ai_comment_for_story(image_bytes):
@@ -287,7 +269,7 @@ def generate_ai_comment_for_story(image_bytes):
         return None
 
 
-def get_sales_message(username, last_message, message_history):
+def get_sales_message(username, last_message, message_history, stats: 'Stats'):
     """
     Returns ai generated sales message based sales stage
     """
@@ -302,27 +284,42 @@ def get_sales_message(username, last_message, message_history):
     if account.stage == 0:
         # cold prospect
         # need to send a question query
+        #add question!!!!
         instructions_prompt = INSTRUCTIONS_PROMPT_S2 + message_history
         account.stage = 2
         db_helpers.save_to_db(account)
+        stats.message_stage_1 += 1
     elif account.stage == 2:
         instructions_prompt = INSTRUCTIONS_PROMPT_S3
         account.stage = 3
         db_helpers.save_to_db(account)
+        stats.message_stage_2 += 1
+    elif account.stage == 3:
+        instructions_prompt = INSTRUCTIONS_PROMPT_S4
+        account.stage = 4
+        db_helpers.save_to_db(account)
+        stats.message_stage_3 += 1
     else:
-        #send no message and all stages passed
+        # not not reply anymore
+        instructions_prompt = ''
         return False
+
+    stats.reply += 1
 
     # Open AI assistant connect, get thread_id
     thread_id = False
-    if account.thread_id:
-        thread_id = account.thread_id
-    else:
+    
+    if account.thread_id == "0" or account.thread_id is None:
         thread = clientOpenAI.beta.threads.create()
         thread_id = thread.id
         account.thread_id = thread_id
         db_helpers.save_to_db(account)
+        print(f"New thread created with ID: {thread_id}")
+    else:
+        thread_id = account.thread_id
+        print(f"Existing thread ID: {thread_id}")
 
+    
     # Now create message we run from a user
     content_prompt = last_message
     message = clientOpenAI.beta.threads.messages.create(
@@ -367,6 +364,7 @@ def get_sales_message(username, last_message, message_history):
                     break
 
     # add save stats message we sent
+    stats.save()
     return concatenated_message
 
 

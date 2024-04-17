@@ -29,6 +29,8 @@ from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.chrome.service import Service as ChromeService
 from selenium.webdriver.firefox.service import Service as FirefoxService
 from selenium.webdriver import ActionChains
+import chromedriver_binary
+from selenium_recaptcha_solver import RecaptchaSolver
 
 
 import os
@@ -48,7 +50,7 @@ from modules.constants import INSTA_URL
 from modules.helpers import *
 from modules.locators import (
     LoginLocators, PostLocators, StoryLocators, ReelsLocators, 
-    FollowersLocators, AccountLocators
+    FollowersLocators, AccountLocators, LOCATORS
 )
 
 
@@ -170,6 +172,10 @@ class Insta:
             options = ChromeOptions()
             if headless:
                 options.add_argument("--headless")
+                options.add_argument("--window-size=1920,1080")
+                options.add_argument("user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36")
+                options.add_argument('--no-sandbox')
+                options.add_argument("--disable-extensions")
             if profile:
                 options.add_argument(f'user-data-dir={profile}')
             options.add_argument("--disable-notifications")
@@ -186,7 +192,8 @@ class Insta:
                 # self.driver = webdriver.Chrome(
                 #     executable_path=ChromeDriverManager(path=os.path.join(self.driver_baseloc, 'chrome')).install(),
                 #     options=options)
-                self.driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
+                # self.driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
+                self.driver = webdriver.Chrome(options=options)
 
             except Exception as webdriver_ex:
                 logger.error(f'[Driver Download Manager Error]: {str(webdriver_ex)}')
@@ -194,6 +201,7 @@ class Insta:
                 
         self.wait = WebDriverWait(self.driver, timeout)
         self.ac = ActionChains(self.driver)
+        self.solver = RecaptchaSolver(driver=self.driver)
 
         self.baseurl = INSTA_URL
         self.targeturl = self.baseurl
@@ -290,7 +298,7 @@ class Insta:
         return True
 
 
-    def check_inbox(self) -> bool | None:
+    def check_inbox(self, stats: 'Stats') -> bool | None:
         """
         Checks for new messages in the inbox
         """
@@ -298,7 +306,7 @@ class Insta:
         #add check for new messages
 
         self.driver.get(INSTA_URL + '/direct/inbox/')
-        wait = WebDriverWait(self.driver, timeout=10)
+        wait = WebDriverWait(self.driver, timeout=20)
         try:
             logger.info('Open chat messages')
 
@@ -369,15 +377,20 @@ class Insta:
                     print("No <a> element found with the given XPath expression.")
 
                 # Get AI generated message
-                message = get_sales_message(username, last_message, message_history)
+                message = get_sales_message(username, last_message, message_history, stats)
 
                 self.send_inbox_message(message)
 
-                time.sleep(random_wait(5))  # 5 seconds delay between clicks
+                account = DbHelpers().get_or_create_account(username)
+                if account:
+                    #Save stats, 200 - message
+                    DbHelpers().save_story_stats(account.id, 200, False, message)
+
+                time.sleep(random_wait(5, 2))  # 5 seconds delay between clicks
                 # break
             return True 
         except TimeoutException:
-            logger.error("Timeout: No unread messages")
+            logger.info("Timeout: No unread messages")
             return False
         except Exception as ex:
             print(ex)
@@ -395,12 +408,13 @@ class Insta:
         try:
             human_like_typing(cmt, message)
             cmt.send_keys(Keys.ENTER)
-
             self.wait_until_comment_cleared(cmt, timeout)
+            return True
         except ElementClickInterceptedException:
             logger.info("ElementClickInterceptedException")
             self.driver.execute_script('arguments[0].click();', cmt)
             self.wait_until_comment_cleared(cmt, timeout)
+            return True
         except Exception as ex:
             print(ex)
             return False
@@ -649,14 +663,14 @@ class Insta:
                     else:
                         logger.info('Scrolling')
                         scroll_into_view(self.driver, username_links[-1])
-                        time.sleep(random_wait(3))
+                        time.sleep(random_wait(5))
                         tries += 1
 
                 except StaleElementReferenceException:
                     logger.error(f'StaleElementReferenceException exception occured while capturing username links')
                     logger.info("Capturing div containing followers' list")
                     followers_div = self.wait.until(EC.presence_of_element_located(get_By_strategy(FollowersLocators.container)))
-                    time.sleep(2)
+                    time.sleep(random_wait(3))
     
             
             div_read_start = div_read_end
@@ -681,7 +695,7 @@ class Insta:
             logger.info(f'Total username count: {len(usernames)}')
             logger.info('Scrolling')
             scroll_into_view(self.driver, username_links[-1])
-            time.sleep(3)
+            time.sleep(random_wait(7,5))
         
         return usernames
     
@@ -836,59 +850,69 @@ class Insta:
         return False
 
     def is_story_present(self):
+        # return True
         """
         Checks if story is present
         """
-        wait = WebDriverWait(self.driver, random_wait(5))
+        wait = WebDriverWait(self.driver, 5)
         try:
-            is_disabled = wait.until(EC.presence_of_element_located(get_By_strategy(StoryLocators.is_present))).get_attribute('aria-disabled')
-            return is_disabled == 'false'
+            # is_disabled = wait.until(EC.presence_of_element_located(get_By_strategy(storylocators.is_present)))
+            # .get_attribute('aria-disabled')
+            # return is_disabled == 'false'
+            # canvas only appears when story is present
+            wait.until(EC.presence_of_element_located(
+                get_By_strategy(f"//span[@role='link']/img[contains(@alt, '{self.account}')]/../../canvas")
+            ))
+            # is_disabled = wait.until(EC.presence_of_element_located((By.XPATH, '//div[contains(@class, "_aarf")]'))).get_attribute('aria-disabled')
+            return True
         except Exception as ex:
-            logger.error(f'Stories not found for the account')
+            logger.info(f'Stories not found for the account')
         return False
 
     def open_story(self) -> bool:
         """
         Opens story for a user
         """
-        wait = WebDriverWait(self.driver, random_wait(10))
+        wait = WebDriverWait(self.driver, 10)
         try:
-            wait.until(EC.presence_of_element_located((By.XPATH, "//div/div/div[2]/div/div/div[1]/div[1]/div[2]/div[2]/section/main/div/header/div/div"))).click()
+            # wait.until(EC.presence_of_element_located((By.XPATH, "//div/div/div[2]/div/div/div[1]/div[1]/div[2]/div[2]/section/main/div/header/div/div"))).click()
+            wait.until(EC.presence_of_element_located((By.XPATH, f'//img[contains(@alt, "{self.account}")]'))).click()
             logger.info('[open_story]: Open to view')
 
-            story_accept = self.driver.find_element(By.XPATH, "//div/div/div[2]/div/div/div[1]/div[1]/div/div/div/div/div[2]/div/div[3]/div")
-            if story_accept:
-                story_accept.click()
-                logger.info('[accpet_story]: Accept to view')
+            try:
+                story_accept = self.driver.find_element(By.XPATH, "//div/div/div[2]/div/div/div[1]/div[1]/div/div/div/div/div[2]/div/div[3]/div")
+                if story_accept:
+                    story_accept.click()
+                    logger.info('[accpet_story]: Accept to view')
+                    return True
+            except Exception as ex:
+                # logger.info(f'[accpet_story] Error: {ex.__class__.__name__}')
                 return True
-            return True
+            
         except Exception as ex:
             logger.error(f'[open_story] Error: {ex.__class__.__name__}')
         return False
-    
-    # def view_story_accpet(self) -> bool:
-    #     """
-    #     Accepts story view for a user if window is present
-    #     """
-    #     wait = WebDriverWait(self.driver, 1)
-    #     try:
-    #         wait.until(EC.presence_of_element_located((By.XPATH, "//div/div/div[2]/div/div/div[1]/div[1]/div/div/div/div/div[2]/div/div[3]/div"))).click()
-    #         logger.info('[accpet_story]: Accept to view')
-    #         return True
-    #     except Exception as ex:
-    #         logger.error(f'[open_story] Error: {ex.__class__.__name__}')
-    #     return False
 
     def pause_story(self) -> bool:
         """
         Pauses a story
         """
-        wait = WebDriverWait(self.driver, 5)
+        wait = WebDriverWait(self.driver, random_wait(3))
         try:
-            wait.until(EC.presence_of_element_located(get_By_strategy(StoryLocators.pause.pause_button))).click()
+            # story_pause = self.driver.find_element(By.XPATH, "//div/div/div[3]/div/div/div[3]/div/section/div[1]/div/div/div[1]/div[1]/div/div[2]/div[2]/div[2]/div").find_element(By.CSS_SELECTOR, 'svg[aria-label="Pause"]')
+            wait.until(EC.presence_of_element_located(get_By_strategy(LOCATORS['locators']['story']['pause']['pause_button']))).click()
+            # logger.info(f'Pause tag {LOCATORS["locators"]["story"]["pause"]["pause_button"]}')
+
+            # if story_pause:
+            #     story_pause.click()
+            #     logger.info(f'[pause_story] Pause')
+            # else:
+            #     logger.error(f'[pause_story] Error')
+            # wait.until(EC.presence_of_element_located((By.XPATH, "//div/div/div[3]/div/div/div[3]/div/section/div[1]/div/div/div[1]/div[1]/div[2]")).find_element(By.CSS_SELECTOR, 'svg[aria-label="Pause"]')).click()
             return True
         except Exception as ex:
             logger.error(f'[pause_story] Error: {ex.__class__.__name__}')
+            # logger.error(f'[pause_story] Error: {ex}')
         return False
     
     def get_story_image(self) -> str:
@@ -903,27 +927,53 @@ class Insta:
             logger.error(f'[image_story] Error: {ex.__class__.__name__}')
         return False
     
+    # def like_story(self) -> bool | None:
+    #     """
+    #     Like a story
+    #     """
+    #     logger.info('[like_story]: Start')
+    #     wait = WebDriverWait(self.driver, 2)
+    #     try:
+    #         wait.until(EC.presence_of_element_located((By.XPATH, "//div/div/div[3]/div/div/div[3]/div/section/div[1]/div/div/div[1]/div[2]/div[2]/div[1]/div[2]/span/div"))).click()
+    #         logger.info('[like_story]: Liked')
+            
+    #         return True
+    #     except Exception as ex:
+    #         try:
+    #             if self.driver.find_element(By.XPATH, "//div/div/div[3]/div/div/div[3]/div/section/div[1]/div/div/div[1]/div[2]/div[2]/div[1]/div[2]/span/div").find_element(By.CSS_SELECTOR, 'svg[aria-label="Unlike"]'):
+    #                 logger.info('[like_story]: Already liked')
+    #                 return None
+    #         except Exception as ex2:
+    #             logger.error(f'[image_story] Error: {ex2.__class__.__name__}')
+    #             return False
+    #         logger.error(f'[like_story] Error: {ex.__class__.__name__}')
+    #     return False
+    
     def like_story(self) -> bool | None:
-        """
-        Like a story
-        """
-        logger.info('[like_story]: Start')
+        """ Pauses a story """
         wait = WebDriverWait(self.driver, 2)
         try:
             wait.until(EC.presence_of_element_located(get_By_strategy(StoryLocators.like.like_button))).click()
             return True
         except Exception as ex:
-            if self.driver.find_element(*get_By_strategy(StoryLocators.like.unlike_button)):
-                logger.info('[like_story]: Already liked')
-                return None
+            try:
+                if self.driver.find_element(*get_By_strategy(StoryLocators.like.unlike_button)):
+                    logger.info('[like_story]: Already liked')
+                    return True
+            except Exception as ex2:
+                logger.error(f'[image_story] Error: {ex2.__class__.__name__}')
+                return False
             logger.error(f'[like_story] Error: {ex.__class__.__name__}')
         return False
+
 
     def next_story(self):
         """ Moves to next story """
         wait = WebDriverWait(self.driver, 5)
         try:
             wait.until(EC.presence_of_element_located(get_By_strategy(StoryLocators.next))).click()
+            # wait.until(EC.presence_of_element_located((By.XPATH, "//div/div/div[3]/div/div/div[3]/div/section/div[1]/div/div/div[2]/div[2]"))).click()
+            logger.info('[next_story]: Next')
             return True
         except Exception as ex:
             logger.error(f'[next_story] Error: {ex.__class__.__name__}')
@@ -933,8 +983,12 @@ class Insta:
         """ Get total stories """
         wait = WebDriverWait(self.driver, 10)
         try:
-            return len(wait.until(EC.presence_of_element_located(
-                get_By_strategy(StoryLocators.count.container))).find_elements(*get_By_strategy(StoryLocators.count.story)))
+            # Find all elements matching the given XPath
+            # story_elements = wait.until(EC.presence_of_all_elements_located((By.XPATH, "//div/div/div[3]/div/div/div[3]/div/section/div[1]/div/div/div[1]/div[1]/div[1]/div")))
+            # logger.info(f'[total_story]: {len(story_elements)} stories found')
+            # Return the count of found elements
+            # return len(story_elements)
+            return len(wait.until(EC.presence_of_element_located(get_By_strategy(LOCATORS["locators"]["story"]["count"]["container"]))).find_elements(*get_By_strategy(LOCATORS["locators"]["story"]["count"]["story"])))
         except Exception as ex:
             logger.error(f'[get_total_stories] Error: {ex}')
         return 0
@@ -945,11 +999,16 @@ class Insta:
         wait = WebDriverWait(self.driver, 5)
         try:
 
-            cmt = wait.until(EC.presence_of_element_located(get_By_strategy(StoryLocators.comment.comment_box)))
+            cmt = wait.until(EC.presence_of_element_located(get_By_strategy(LOCATORS["locators"]["story"]["comment"]["comment_box"])))
+            # logger.info(f'Comment tag {LOCATORS["locators"]["story"]["comment"]["comment_box"]}')
+
+            # cmt = wait.until(EC.presence_of_element_located((By.XPATH, "//div/div/div[3]/div/div/div[3]/div/section/div[1]/div/div/div[1]/div[2]/div[2]/div[1]/div[1]/div[1]/textarea"))
             cmt.click()
-            time.sleep(0.5)
-            cmt.send_keys(text)
+            time.sleep(1)
+            # cmt.send_keys(text)
+            human_like_typing(cmt, text)
             cmt.send_keys(Keys.ENTER)
+            time.sleep(1)
             return True
         except Exception as ex:
             logger.error(f'[comment_on_story] Could not comment on this story. Error: {ex.__class__.__name__}')
@@ -1020,5 +1079,23 @@ class Insta:
         except Exception as ex:
             logger.error('[like_reel_comments] Failed to comment on the reel')
         return False
-        
+    
+    def check_and_solve_captcha(self):
+        max_retries = 5
+        try:
+            recaptcha_iframe = self.driver.find_element(By.XPATH, '//iframe[@title="reCAPTCHA"]')
+        except Exception as e:
+            print("reCAPTCHA iframe not found.")
+            return
+
+        for retry in range(max_retries):
+            try:
+                self.solver.click_recaptcha_v2(iframe=recaptcha_iframe)
+                print("reCAPTCHA solved successfully.")
+                break
+            except Exception as e:
+                if retry == max_retries - 1:
+                    print(f"Failed to solve reCAPTCHA after {max_retries} attempts.")
+                else:
+                    print(f"Attempt {retry + 1} failed. Retrying...")
 

@@ -7,9 +7,9 @@ from modules.insta import *
 
 load_dotenv('.env')
 
-TEST_INSTA_USER = os.getenv('INSTA_USER', '')
-TEST_INSTA_PASS = os.getenv('INSTA_PASS', '')
-TEST_INSTA_TARGET_USER = os.getenv('INSTA_TARGET_USER', '')
+TEST_INSTA_USER = os.getenv('TEST_INSTA_USER', '')
+TEST_INSTA_PASS = os.getenv('TEST_INSTA_PASS', '')
+TEST_INSTA_TARGET_USER = os.getenv('TEST_INSTA_TARGET_USER', '')
 INSTA_TARGET_STORY_USER = os.getenv('INSTA_TARGET_STORY_USER', '')
 INSTA_TARGET_REEL_USER = os.getenv('INSTA_TARGET_REEL_USER', '')
 TEST_INSTA_TARGET_TAG = os.getenv('INSTA_TARGET_TAG', '')

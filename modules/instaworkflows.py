@@ -264,6 +264,10 @@ class Post(InstaWorkFlow):
         Interact with posts
         """
 
+        total_posts = self.insta.get_number_of_posts()
+        if total_posts is None or total_posts < 5:
+            DbHelpers().mark_account_as_private(target)
+
         if self.profile.onlystory or self.profile.onlyreels:
             return
         
@@ -271,7 +275,6 @@ class Post(InstaWorkFlow):
             self.logger.info(f"[target: {target}] This account is private. You may need to follow {target} to like their posts.")
             return 
         
-        total_posts = self.insta.get_number_of_posts()
         if not total_posts:
             self.logger.info(f"[target: {target}] No. of posts found: {total_posts}")
             return

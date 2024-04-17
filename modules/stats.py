@@ -40,6 +40,12 @@ class Stats:
         self.story_likes: int = 0
         self.story_comments: int = 0
 
+        # messages
+        self.message_stage_1: int = 0
+        self.message_stage_2: int = 0
+        self.message_stage_3: int = 0
+        self.reply: int = 0
+
         # reels
         self.reels: int = 0       
         self.reel_likes: int = 0
@@ -153,6 +159,7 @@ class Stats:
         """ Signal handler """
         self.save()
         logger.error(f'{LimitsExceededError.__name__}: One of the actions has exceeded the daily/hourly limit')
+        self.log()
         sys.exit()
 
     def log(self):
