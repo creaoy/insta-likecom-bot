@@ -1,6 +1,7 @@
 {   
     "username": "johnzakme",
     "password":"DNeKZVbtBj4crB3d4tEu",
+    "proxy":"socks5://xcQOBSK7rdTl8xS:2bro6AB5friyqn9@203.166.138.252:55113",
     "target": "targets.txt",
     "numofposts": "1",
     "comments": "comments.txt",

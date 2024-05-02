@@ -29,7 +29,11 @@
                     "//button[contains(text(),'Save info')]"
                 ]
             },
-            "twofactor": "//div[@id='verificationCodeDescription']"
+            "twofactor": "//div[@id='verificationCodeDescription']",
+            "notifications": [
+                "//button[text()='Not now']",
+                "//div[text()='Not now']"
+            ] 
         },
         "post": {
             "like": "//*[name()='svg' and contains(@aria-label, 'Like')]",

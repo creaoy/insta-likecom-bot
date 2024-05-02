@@ -30,3 +30,6 @@ alembic
 schedule
 selenium-recaptcha-solver
 chromedriver-binary
+undetected-chromedriver
+emunium
+opencv-python

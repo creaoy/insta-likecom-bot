@@ -286,13 +286,13 @@ class Profile:
         else:
             raise LimitsFileMissingError('Limits file is missing. Use --limits file.json to specify a limits file.')
 
-    def _parse_brprofile(self) -> None:
-        """ Loads brprofile """
-        if self.brprofile:
-            current_dir = os.path.dirname(os.path.abspath(__file__))
-            self.brprofile = os.path.join(current_dir, '../', self.brprofile)
-            if not pathexists(self.brprofile):
-                raise InvalidBrowserProfileError(f"Invalid browser profile - {self.brprofile}")
+    # def _parse_brprofile(self) -> None:
+    #     """ Loads brprofile """
+    #     if self.brprofile:
+    #         current_dir = os.path.dirname(os.path.abspath(__file__))
+    #         self.brprofile = os.path.join(current_dir, '../', self.brprofile)
+    #         if not pathexists(self.brprofile):
+    #             raise InvalidBrowserProfileError(f"Invalid browser profile - {self.brprofile}")
 
     def _parse_eltimeout(self) -> None:
         """ Loads eltimeout """
@@ -321,7 +321,6 @@ class Profile:
         """ Parses headless """
         if self.headless:
             self.headless: bool = True
-    
 
 def remove_blanks(lst: List) -> List:
     """

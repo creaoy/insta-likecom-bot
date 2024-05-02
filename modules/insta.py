@@ -29,11 +29,14 @@ from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.chrome.service import Service as ChromeService
 from selenium.webdriver.firefox.service import Service as FirefoxService
 from selenium.webdriver import ActionChains
-import chromedriver_binary
+# import chromedriver_binary
 from selenium_recaptcha_solver import RecaptchaSolver
+import undetected_chromedriver as uc
+from emunium import EmuniumSelenium
 
 
 import os
+from pprint import pprint
 import re
 import time
 import random
@@ -86,7 +89,7 @@ def retry(func):
     # wrapper function
     @wraps(func)
     def wrapper(*args, **kwargs):
-        max_tries = 5
+        max_tries = 2
         attempt = 1
         status = False
         while not status and attempt < max_tries:
@@ -126,7 +129,7 @@ def random_wait(base_wait: int, variance: int = 1) -> int:
 class Insta:
     def __init__(
             self, username: str, password: str, timeout: int = 30, 
-            browser: str = 'chrome', headless: bool = False, profile: str = None) -> None:
+            browser: str = 'chrome', headless: bool = False, profile: str = None, proxy: str = None) -> None:
         """Insta class
         
         Automates Instagram interaction
@@ -138,6 +141,7 @@ class Insta:
             browser (str, optional): browser - 'chrome', 'firefox'. Defaults to 'chrome'.
             headless (bool, optional): launch browser in headless mode. Defaults to False.
             profile (str, optional): browser profile. Defaults to None.
+            proxy (str, optional): Proxy server. Defaults to None.
         """
 
         # current working directory/driver
@@ -171,16 +175,32 @@ class Insta:
             # Chrome Options
             options = ChromeOptions()
             if headless:
-                options.add_argument("--headless")
-                options.add_argument("--window-size=1920,1080")
-                options.add_argument("user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36")
+                # options.add_argument("--headless")
+                # options.add_argument("--window-size=1920,1080")
+                # options.add_argument("user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36")
                 options.add_argument('--no-sandbox')
                 options.add_argument("--disable-extensions")
+                options.add_argument("start-maximized")
+                # options.add_experimental_option('useAutomationExtension', False)
             if profile:
-                options.add_argument(f'user-data-dir={profile}')
+                # Get the full path for the profile directory
+                profile_dir = os.path.join(os.path.abspath(""), "profiles")
+                profile_dir = os.path.abspath(profile_dir)  # Convert to absolute path
+
+                # Create the directory if it doesn't exist
+                if not os.path.exists(os.path.join(profile_dir, username)):
+                    os.makedirs(os.path.join(profile_dir, username))
+
+                options.add_argument(f'user-data-dir=r"{profile_dir}"')
+                options.add_argument(f'--profile-directory={username}')
+
+            if proxy:
+                options.add_argument(f'--proxy-server={proxy}')
+
+
             options.add_argument("--disable-notifications")
             options.add_argument("--start-maximized")
-            options.add_experimental_option('excludeSwitches', ['enable-logging'])
+            # options.add_experimental_option('excludeSwitches', ['enable-logging'])
             options.add_argument("--log-level=3")
             
             if platform == 'linux' or platform == 'linux2':
@@ -193,7 +213,13 @@ class Insta:
                 #     executable_path=ChromeDriverManager(path=os.path.join(self.driver_baseloc, 'chrome')).install(),
                 #     options=options)
                 # self.driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
-                self.driver = webdriver.Chrome(options=options)
+                # self.driver = webdriver.Chrome(options=options)
+                print("Web driver options:")
+                pprint(options.__dict__)
+                if headless:
+                    self.driver = uc.Chrome(headless=True, options=options)
+                else:
+                    self.driver = uc.Chrome(options=options)
 
             except Exception as webdriver_ex:
                 logger.error(f'[Driver Download Manager Error]: {str(webdriver_ex)}')
@@ -202,6 +228,7 @@ class Insta:
         self.wait = WebDriverWait(self.driver, timeout)
         self.ac = ActionChains(self.driver)
         self.solver = RecaptchaSolver(driver=self.driver)
+        self.emunium = EmuniumSelenium(self.driver)
 
         self.baseurl = INSTA_URL
         self.targeturl = self.baseurl
@@ -281,7 +308,11 @@ class Insta:
         """ Initiates login with username and password """
         try:
             self.driver.get(self.baseurl)
-            self.wait.until(EC.presence_of_element_located(get_By_strategy(LoginLocators.username))).send_keys(self.username)
+            # el_username = self.wait.until(EC.presence_of_element_located(get_By_strategy(LoginLocators.username))).send_keys(self.username)
+            el_username = self.wait.until(EC.presence_of_element_located(get_By_strategy(LoginLocators.username)))
+
+            self.emunium.find_and_move(el_username, click=True)
+            self.emunium.silent_type(self.username)
             self.wait.until(EC.presence_of_element_located(get_By_strategy(LoginLocators.password))).send_keys(self.password)
             self.wait.until(EC.presence_of_element_located(get_By_strategy(LoginLocators.submit))).click()
 
@@ -306,6 +337,7 @@ class Insta:
         #add check for new messages
 
         self.driver.get(INSTA_URL + '/direct/inbox/')
+        self.dont_turn_on_notifications()
         wait = WebDriverWait(self.driver, timeout=20)
         try:
             logger.info('Open chat messages')
@@ -556,6 +588,20 @@ class Insta:
         """ Clicks 'Not Now' button when prompted with 'Save Your Login Info?' """
         wait = WebDriverWait(self.driver, timeout=2)
         for xpath in LoginLocators.save_login.notnow:
+            try:
+                logger.info(f'Finding Not Now button with xpath: {xpath}')
+                wait.until(EC.presence_of_element_located(get_By_strategy(xpath))).click()
+                return True
+            except:
+                logger.error(f'Could not find Not Now button with xpath: {xpath}')
+        return False
+    
+    def dont_turn_on_notifications(self) -> bool:
+        """ Clicks 'Not Now' button when prompted with 'Turn On Notifications?' """
+        wait = WebDriverWait(self.driver, timeout=2)
+        # time.sleep(120)
+        #Turn on Notifications
+        for xpath in LoginLocators.notifications:
             try:
                 logger.info(f'Finding Not Now button with xpath: {xpath}')
                 wait.until(EC.presence_of_element_located(get_By_strategy(xpath))).click()
@@ -1081,17 +1127,25 @@ class Insta:
         return False
     
     def check_and_solve_captcha(self):
+
         max_retries = 5
         try:
+            WebDriverWait(self.driver, 10).until(EC.frame_to_be_available_and_switch_to_it((By.XPATH, '//iframe[@title="Google Recaptcha v2"]')))
             recaptcha_iframe = self.driver.find_element(By.XPATH, '//iframe[@title="reCAPTCHA"]')
+
+            print(recaptcha_iframe)
         except Exception as e:
             print("reCAPTCHA iframe not found.")
+            print(e)
+            
             return
 
         for retry in range(max_retries):
-            try:
+            try:    
                 self.solver.click_recaptcha_v2(iframe=recaptcha_iframe)
                 print("reCAPTCHA solved successfully.")
+                self.driver.switch_to.default_content()
+                WebDriverWait(self.driver, 10).until(EC.element_to_be_clickable((By.XPATH, "//div[@role='button'][contains(.,'Next')]"))).click()   
                 break
             except Exception as e:
                 if retry == max_retries - 1:

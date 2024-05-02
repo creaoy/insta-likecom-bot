@@ -10,7 +10,7 @@ from modules.argparsing import parser
 from modules.profile import Profile
 from modules.instaworkflows import Followers, Story, Post, Reel
 from modules.exceptions import *
-from modules.helpers import display_intro, save_to_file
+from modules.helpers import display_intro, save_to_file, random_wait
 import random
 
 # DB connect
@@ -19,11 +19,10 @@ from modules.database import DbHelpers
 from dotenv import load_dotenv
 load_dotenv()
 
-
 def run_ilcbot(target_list):
     namespace = argparse.Namespace(limits='limits.json', profile='profile.json')
     args = parser.parse_args(namespace=namespace)
-
+    
     logger = AppLogger('ilcbot').getlogger()
 
     try:
@@ -51,7 +50,8 @@ def run_ilcbot(target_list):
             timeout=profile.eltimeout,
             browser=profile.browser,
             headless=profile.headless,
-            profile=profile.brprofile
+            profile=profile.brprofile,
+            proxy=profile.proxy
         )
         if profile.headless:
             logger.info('Running in headless mode')
@@ -123,9 +123,7 @@ def run_ilcbot(target_list):
 
         for target in target_list:
 
-            # check for captacha
-            insta.check_and_solve_captcha()
-
+            # insta.check_and_solve_captcha()
             # check for the inbox messages
             logger.info(f'Checking inbox for a new messages...')
             insta.check_inbox(stats)
@@ -139,6 +137,8 @@ def run_ilcbot(target_list):
             logger.info(f"[target: {target}] Opening target")
             if not insta.open_target():
                 logger.error(f'[target: {target}] Invalid tag or account')
+                # check for captacha
+                insta.check_and_solve_captcha()
                 continue
 
             stats.accounts += 1
@@ -149,18 +149,25 @@ def run_ilcbot(target_list):
                 logger.info(f'[target: {target}] Private account')
                 DbHelpers.mark_account_as_private(target)
 
-            Story(insta, profile, is_private=private_account, logger=logger).interact(target, stats)
-            Post(insta, profile, logger).interact(target, private_account, stats)
-            Reel(insta, profile, logger).interact(target, private_account, stats)
+            # Randomize the execution of Story, Post, and Reel
+            actions = [
+                lambda: Story(insta, profile, is_private=private_account, logger=logger).interact(target, stats),
+                lambda: Post(insta, profile, logger).interact(target, private_account, stats),
+                # lambda: Reel(insta, profile, logger).interact(target, private_account, stats)
+            ]
+            random.shuffle(actions)
+            for action in actions:
+                action()
+                time.sleep(random_wait(5, 2)) # Wait for 3-7 seconds
             stats.save()
-            time.sleep(3)
+            
 
         logger.info("Script finished successfully")
         stats.log()
-        logger.info("Checking inbox every minute")
-        while True:
-            insta.check_inbox(stats)
-            time.sleep(61)
+        # logger.info("Checking inbox every minute")
+        # while True:
+        #     insta.check_inbox(stats)
+        #     time.sleep(61)
 
     except Exception as ex:
         logger.error(f"Script ended with error")

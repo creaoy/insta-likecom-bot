@@ -4,8 +4,8 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service as ChromeService
 from webdriver_manager.chrome import ChromeDriverManager
-import chromedriver_binary
-
+# import chromedriver_binary
+import undetected_chromedriver as uc
 
 test_ua = 'Mozilla/5.0 (Windows NT 4.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/37.0.2049.0 Safari/537.36'
 
@@ -20,7 +20,8 @@ options.add_argument('--no-sandbox')
 options.add_argument("--disable-extensions")
 
 # test_driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
-test_driver = webdriver.Chrome(options=options)
+test_driver = uc.Chrome()
+# test_driver = webdriver.Chrome(options=options)
 
 solver = RecaptchaSolver(driver=test_driver)
 

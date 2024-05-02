@@ -61,7 +61,8 @@ try:
         timeout=profile.eltimeout,
         browser=profile.browser,
         headless=profile.headless,
-        profile=profile.brprofile
+        profile=profile.brprofile,
+        proxy=profile.proxy
     )
     if profile.headless:
         logger.info('Running in headless mode')

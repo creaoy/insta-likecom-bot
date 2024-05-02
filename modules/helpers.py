@@ -405,5 +405,18 @@ def save_to_file(content, file_path):
         file.write(content)
 
 
+def random_wait(base_wait: int, variance: int = 1) -> int:
+    """
+    Generates a random wait time around a base value.
+
+    Args:
+    base_wait (int): The base wait time in seconds.
+    variance (int): The maximum deviation from the base wait time, in seconds.
+
+    Returns:
+    int: A random wait time.
+    """
+    return random.randint(base_wait - variance, base_wait + variance)
+
 if __name__ == '__main__':
     pass

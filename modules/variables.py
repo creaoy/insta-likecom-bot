@@ -6,6 +6,10 @@ DB_URL = os.getenv("DB_URL")
 OLLAMA_URL = os.getenv("OLLAMA_URL")
 OPENAI_ASSISTANT_ID = os.getenv("OPENAI_ASSISTANT_ID")
 
+DOLPIN_API_KEY = os.getenv("DOLPIN_API_KEY")
+DOLPIN_PROFILE_ID = os.getenv("DOLPIN_PROFILE_ID")
+
+
 C_TITLE = os.getenv("C_TITLE")
 C_OFFER = os.getenv("C_OFFER")
 

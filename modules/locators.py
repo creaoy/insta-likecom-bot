@@ -57,6 +57,7 @@ class LoginLocators:
     submit: str = LOCATORS['locators']['login']['submit']
     validation: tuple[str] = tuple(LOCATORS['locators']['login']['validation'])
     twofactor: str = LOCATORS['locators']['login']['twofactor']
+    notifications: tuple[str] = tuple(LOCATORS['locators']['login']['notifications'])
     save_login: SaveLoginLocators = field(default_factory=lambda: SaveLoginLocators())
 
 
